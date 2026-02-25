@@ -402,66 +402,83 @@ function Maintenance() {
           </article>
         )}
         {categoriesWithState.map((category) => (
-          <article className="card" key={category.id}>
-            {manageMode && (
-              <div className="maintenance-manage-row">
-                <label className="item-row maintenance-select-row">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(category.id)}
-                    onChange={() => toggleSelection(category.id)}
+          <div
+            className={`maintenance-entry-row ${
+              manageMode ? "maintenance-entry-row-manage" : ""
+            }`}
+            key={category.id}
+          >
+            <article className="card maintenance-entry-card">
+              <div className="maintenance-card-header">
+                <h3 className="item-title">{category.name}</h3>
+                <span className={`status-badge status-${category.status}`}>
+                  {statusLabel(category.status)}
+                </span>
+              </div>
+              {(category.intervalType === "time" ||
+                category.intervalType === "both") && (
+                <>
+                  <p className="item-row">
+                    Last service date: {category.lastServiceDateCalculated || "N/A"}
+                  </p>
+                  <p className="item-row">
+                    Next due date: {category.nextDueDate || "N/A"}
+                  </p>
+                </>
+              )}
+              {(category.intervalType === "mileage" ||
+                category.intervalType === "both") && (
+                <>
+                  <p className="item-row">
+                    Last service mileage:{" "}
+                    {typeof category.lastServiceMileageCalculated === "number"
+                      ? `${Math.round(category.lastServiceMileageCalculated)} km`
+                      : "N/A"}
+                  </p>
+                  <p className="item-row">
+                    Next due mileage:{" "}
+                    {typeof category.nextDueMileage === "number"
+                      ? `${Math.round(category.nextDueMileage)} km`
+                      : "N/A"}
+                  </p>
+                </>
+              )}
+              {typeof category.progressPercentage === "number" && (
+                <div className="maintenance-progress">
+                  <div
+                    className={`maintenance-progress-fill status-${category.status}`}
+                    style={{ width: `${Math.max(2, category.progressPercentage)}%` }}
                   />
-                  Select
-                </label>
-                <button type="button" onClick={() => openEditCategory(category)}>
-                  Configure
-                </button>
-              </div>
-            )}
-
-            <div className="maintenance-card-header">
-              <h3 className="item-title">{category.name}</h3>
-              <span className={`status-badge status-${category.status}`}>
-                {statusLabel(category.status)}
-              </span>
-            </div>
-            {(category.intervalType === "time" ||
-              category.intervalType === "both") && (
-              <>
-                <p className="item-row">
-                  Last service date: {category.lastServiceDateCalculated || "N/A"}
-                </p>
-                <p className="item-row">
-                  Next due date: {category.nextDueDate || "N/A"}
-                </p>
-              </>
-            )}
-            {(category.intervalType === "mileage" ||
-              category.intervalType === "both") && (
-              <>
-                <p className="item-row">
-                  Last service mileage:{" "}
-                  {typeof category.lastServiceMileageCalculated === "number"
-                    ? `${Math.round(category.lastServiceMileageCalculated)} km`
-                    : "N/A"}
-                </p>
-                <p className="item-row">
-                  Next due mileage:{" "}
-                  {typeof category.nextDueMileage === "number"
-                    ? `${Math.round(category.nextDueMileage)} km`
-                    : "N/A"}
-                </p>
-              </>
-            )}
-            {typeof category.progressPercentage === "number" && (
-              <div className="maintenance-progress">
-                <div
-                  className={`maintenance-progress-fill status-${category.status}`}
-                  style={{ width: `${Math.max(2, category.progressPercentage)}%` }}
+                </div>
+              )}
+            </article>
+            <div className="maintenance-side-controls" aria-hidden={!manageMode}>
+              <label className="maintenance-side-check">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(category.id)}
+                  onChange={() => toggleSelection(category.id)}
+                  aria-label={`Select ${category.name}`}
+                  tabIndex={manageMode ? 0 : -1}
                 />
-              </div>
-            )}
-          </article>
+              </label>
+              <button
+                type="button"
+                className="maintenance-gear-button"
+                onClick={() => openEditCategory(category)}
+                aria-label={`Configure ${category.name}`}
+                title={`Configure ${category.name}`}
+                tabIndex={manageMode ? 0 : -1}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M19.4 13.5a7.8 7.8 0 0 0 .1-1.5 7.8 7.8 0 0 0-.1-1.5l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.2a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-2.6-1.5l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-2.6 1.5l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.3a.5.5 0 0 0 .1.6l2 1.6a7.8 7.8 0 0 0-.1 1.5 7.8 7.8 0 0 0 .1 1.5l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.2c.1.2.4.3.6.2l2.4-1a7.3 7.3 0 0 0 2.6 1.5l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6a7.3 7.3 0 0 0 2.6-1.5l2.4 1c.2.1.5 0 .6-.2l1.9-3.2a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
         ))}
       </section>
 

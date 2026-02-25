@@ -17,6 +17,10 @@
   box-sizing: border-box;
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 html,
 body,
 #root {
@@ -26,6 +30,7 @@ body,
 body {
   margin: 0;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.4;
   background:
     radial-gradient(circle at top right, #1f2937 0%, transparent 35%),
     radial-gradient(circle at bottom left, #1e293b 0%, transparent 30%),
@@ -40,11 +45,15 @@ a {
 .page {
   max-width: 760px;
   margin: 0 auto;
-  padding: 16px 16px 92px;
+  padding:
+    calc(16px + env(safe-area-inset-top))
+    calc(16px + env(safe-area-inset-right))
+    calc(92px + env(safe-area-inset-bottom))
+    calc(16px + env(safe-area-inset-left));
 }
 
 .page-with-sticky-cta {
-  padding-bottom: 150px;
+  padding-bottom: calc(160px + env(safe-area-inset-bottom));
 }
 
 .page-title {
@@ -123,6 +132,14 @@ button,
   padding: 12px 14px;
   background: var(--surface);
   cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease;
+}
+
+button:active,
+.btn:active {
+  transform: translateY(1px);
+  filter: brightness(0.96);
 }
 
 .icon-toggle-button {
@@ -191,6 +208,23 @@ button:disabled,
   font-size: 0.98rem;
 }
 
+button,
+.btn,
+.input,
+.select,
+.textarea {
+  font-family: inherit;
+}
+
+button:focus-visible,
+.btn:focus-visible,
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
 .textarea {
   min-height: 84px;
   resize: vertical;
@@ -251,7 +285,7 @@ button:disabled,
 .fab {
   position: fixed;
   right: 20px;
-  bottom: 22px;
+  bottom: calc(22px + env(safe-area-inset-bottom));
   width: 56px;
   height: 56px;
   border-radius: 999px;
@@ -298,7 +332,11 @@ button:disabled,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding:
+    calc(16px + env(safe-area-inset-top))
+    calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom))
+    calc(16px + env(safe-area-inset-left));
   z-index: 1000;
 }
 
@@ -369,10 +407,10 @@ button:disabled,
 
 .sticky-cta {
   position: fixed;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  width: min(760px, calc(100% - 20px));
+  left: calc(10px + env(safe-area-inset-left));
+  right: calc(10px + env(safe-area-inset-right));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  width: auto;
   padding: 10px;
   border-radius: 12px;
   background: rgba(13, 17, 23, 0.92);
@@ -457,24 +495,66 @@ button:disabled,
   gap: 8px;
 }
 
-.maintenance-manage-row {
+.maintenance-entry-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 0;
+  min-height: 100%;
 }
 
-.maintenance-manage-row button {
-  width: auto;
-  min-width: 94px;
+.maintenance-entry-card {
+  flex: 1 1 auto;
+  transition: transform 180ms ease;
+  transform-origin: left center;
+  will-change: transform;
 }
 
-.maintenance-select-row {
+.maintenance-side-controls {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-left: 0;
+  pointer-events: none;
+  transition: width 180ms ease, opacity 150ms ease, margin-left 180ms ease;
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
   gap: 8px;
-  margin-top: 0;
+}
+
+.maintenance-entry-row-manage .maintenance-entry-card {
+  transform: scaleX(0.96);
+}
+
+.maintenance-entry-row-manage .maintenance-side-controls {
+  width: 84px;
+  opacity: 1;
+  margin-left: 8px;
+  pointer-events: auto;
+}
+
+.maintenance-side-check,
+.maintenance-gear-button {
+  width: 42px;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.maintenance-side-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.maintenance-gear-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .maintenance-progress {
@@ -552,7 +632,84 @@ button:disabled,
   color: #64748b;
 }
 
+.checklist-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 100%;
+}
+
+.checklist-entry-card {
+  flex: 1 1 auto;
+  transition: transform 180ms ease;
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.checklist-side-controls {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-left: 0;
+  pointer-events: none;
+  transition: width 180ms ease, opacity 150ms ease, margin-left 180ms ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.checklist-entry-row-manage .checklist-entry-card {
+  transform: scaleX(0.96);
+}
+
+.checklist-entry-row-manage .checklist-side-controls {
+  width: 84px;
+  opacity: 1;
+  margin-left: 8px;
+  pointer-events: auto;
+}
+
+.checklist-task-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.checklist-task-header .item-title {
+  margin-bottom: 0;
+}
+
+.checklist-side-check,
+.checklist-gear-button {
+  width: 42px;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checklist-side-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.checklist-gear-button {
+  padding: 0;
+}
+
+.checklist-gear-button svg {
+  width: 20px;
+  height: 20px;
+}
+
 .route-transition {
+  position: relative;
   animation-duration: 220ms;
   animation-timing-function: ease-out;
   animation-fill-mode: both;
@@ -569,28 +726,46 @@ button:disabled,
 @keyframes route-slide-forward {
   from {
     opacity: 0.4;
-    transform: translateX(24px);
+    left: 24px;
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    left: 0;
   }
 }
 
 @keyframes route-slide-back {
   from {
     opacity: 0.4;
-    transform: translateX(-24px);
+    left: -24px;
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    left: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .route-transition {
     animation: none;
+  }
+
+  button,
+  .btn {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-width: none;
+    max-height: calc(100vh - 24px);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
   }
 }
 

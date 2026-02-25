@@ -355,74 +355,97 @@ function Checklist() {
           {checklist.todo.map((task) => {
             const doneCount = task.subtasks.filter((subtask) => subtask.isDone).length;
             return (
-              <article
+              <div
                 key={task.id}
-                className="card"
-                onPointerDown={() => handleLongPressStart(task)}
-                onPointerUp={clearTimer}
-                onPointerLeave={clearTimer}
+                className={`checklist-entry-row ${
+                  selectMode ? "checklist-entry-row-manage" : ""
+                }`}
               >
-                {selectMode && (
-                  <label className="item-row" style={{ display: "flex", gap: 8 }}>
+                <article
+                  className="card checklist-entry-card"
+                  onPointerDown={() => handleLongPressStart(task)}
+                  onPointerUp={clearTimer}
+                  onPointerLeave={clearTimer}
+                >
+                  <div className="checklist-task-header">
+                    <h3 className="item-title">{task.taskName}</h3>
+                  </div>
+                  <p className="item-row">
+                    Progress: {doneCount}/{task.subtasks.length} subtasks done
+                  </p>
+                  {task.subtasks.map((subtask) => (
+                    <div
+                      key={subtask.id}
+                      className="card"
+                      style={{ marginTop: 8 }}
+                      onPointerDown={(event) =>
+                        handleSubtaskLongPressStart(event, task.id, subtask)
+                      }
+                      onPointerUp={clearSubtaskTimer}
+                      onPointerLeave={clearSubtaskTimer}
+                    >
+                      <label className="checklist-subtask-check">
+                        <input
+                          type="checkbox"
+                          checked={subtask.isDone}
+                          onChange={(event) => {
+                            if (event.target.checked && !subtask.isDone) {
+                              markSubtaskDone(task.id, subtask.id);
+                            } else if (!event.target.checked && subtask.isDone) {
+                              unmarkSubtask(task.id, subtask.id);
+                            }
+                          }}
+                        />
+                        <span
+                          className={
+                            subtask.isDone ? "checklist-subtask-done" : undefined
+                          }
+                        >
+                          {subtask.name}
+                        </span>
+                      </label>
+                      {subtask.isDone && (
+                        <>
+                          {subtask.completedDate && (
+                            <p className="item-row">Date: {subtask.completedDate}</p>
+                          )}
+                          {subtask.completedKilometers && (
+                            <p className="item-row">
+                              Kilometers: {subtask.completedKilometers}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </article>
+                <div className="checklist-side-controls" aria-hidden={!selectMode}>
+                  <label className="checklist-side-check">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(task.id)}
                       onChange={() => toggleSelect(task.id)}
+                      aria-label={`Select ${task.taskName}`}
+                      tabIndex={selectMode ? 0 : -1}
                     />
-                    Select
                   </label>
-                )}
-                <h3 className="item-title">{task.taskName}</h3>
-                <p className="item-row">
-                  Progress: {doneCount}/{task.subtasks.length} subtasks done
-                </p>
-                {task.subtasks.map((subtask) => (
-                  <div
-                    key={subtask.id}
-                    className="card"
-                    style={{ marginTop: 8 }}
-                    onPointerDown={(event) =>
-                      handleSubtaskLongPressStart(event, task.id, subtask)
-                    }
-                    onPointerUp={clearSubtaskTimer}
-                    onPointerLeave={clearSubtaskTimer}
+                  <button
+                    type="button"
+                    className="checklist-gear-button"
+                    onClick={() => openTaskEditorForEdit(task)}
+                    aria-label={`Configure ${task.taskName}`}
+                    title={`Configure ${task.taskName}`}
+                    tabIndex={selectMode ? 0 : -1}
                   >
-                    <label className="checklist-subtask-check">
-                      <input
-                        type="checkbox"
-                        checked={subtask.isDone}
-                        onChange={(event) => {
-                          if (event.target.checked && !subtask.isDone) {
-                            markSubtaskDone(task.id, subtask.id);
-                          } else if (!event.target.checked && subtask.isDone) {
-                            unmarkSubtask(task.id, subtask.id);
-                          }
-                        }}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path
+                        fill="currentColor"
+                        d="M19.4 13.5a7.8 7.8 0 0 0 .1-1.5 7.8 7.8 0 0 0-.1-1.5l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.2a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-2.6-1.5l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-2.6 1.5l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.3a.5.5 0 0 0 .1.6l2 1.6a7.8 7.8 0 0 0-.1 1.5 7.8 7.8 0 0 0 .1 1.5l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.2c.1.2.4.3.6.2l2.4-1a7.3 7.3 0 0 0 2.6 1.5l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6a7.3 7.3 0 0 0 2.6-1.5l2.4 1c.2.1.5 0 .6-.2l1.9-3.2a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
                       />
-                      <span
-                        className={
-                          subtask.isDone ? "checklist-subtask-done" : undefined
-                        }
-                      >
-                        {subtask.name}
-                      </span>
-                      
-                    </label>
-                    {subtask.isDone && (
-                      <>
-                        {subtask.completedDate && (
-                          <p className="item-row">Date: {subtask.completedDate}</p>
-                        )}
-                        {subtask.completedKilometers && (
-                          <p className="item-row">
-                            Kilometers: {subtask.completedKilometers}
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
-              </article>
+                    </svg>
+                  </button>
+                </div>
+              </div>
             );
           })}
         </section>
