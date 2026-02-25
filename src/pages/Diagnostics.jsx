@@ -46,14 +46,6 @@ function Diagnostics() {
 
   return (
     <main className="page">
-      <div className="topbar">
-        <button type="button" onClick={() => navigate("/")}>
-          Back
-        </button>
-        <button type="button" onClick={toggleConnection}>
-          {connected ? "Disconnect Device" : "Simulate Connect"}
-        </button>
-      </div>
       <h2 className="page-title">Diagnostics</h2>
 
       <section className="card stack">
@@ -61,6 +53,9 @@ function Diagnostics() {
         <p className={connected ? "" : "warning"} style={{ margin: 0 }}>
           {connected ? "Device connected" : "Device not connected"}
         </p>
+        <button type="button" onClick={toggleConnection}>
+          {connected ? "Disconnect Device" : "Simulate Connect"}
+        </button>
       </section>
 
       <section className="card stack" style={{ marginTop: 12 }}>

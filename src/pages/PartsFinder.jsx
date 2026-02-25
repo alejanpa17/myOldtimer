@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { dbGet, dbSet } from "../lib/db";
 import { DEFAULT_VEHICLE_INFO, STORAGE_KEYS } from "../lib/constants";
 
@@ -14,7 +13,6 @@ const PROVIDERS = [
 ];
 
 function PartsFinder() {
-  const navigate = useNavigate();
   const [vehicleInfo, setVehicleInfo] = useState(DEFAULT_VEHICLE_INFO);
   const [vinInput, setVinInput] = useState("");
   const [status, setStatus] = useState("");
@@ -53,11 +51,6 @@ function PartsFinder() {
 
   return (
     <main className="page">
-      <div className="topbar">
-        <button type="button" onClick={() => navigate("/")}>
-          Back
-        </button>
-      </div>
       <h2 className="page-title">Parts Finder</h2>
 
       <section className="card stack" style={{ marginBottom: 12 }}>

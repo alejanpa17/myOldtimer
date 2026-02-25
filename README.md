@@ -1,19 +1,23 @@
 # myOldtimer
 
-Mobile-first PWA for local vehicle management and garage workflows.
+Mobile-first Progressive Web App (PWA) for local vehicle management and garage workflows.
 
-## Features
+## Live URL
 
-- Digital vehicle profile with locally stored photo and editable fields
-- Diagnostics overview with connection state and simulated live values
-- Fault code scan + history view
-- Relay tester with confirmation and status response
-- Maintenance overview + replace/history CRUD flows
-- Checklist module with To-Do/Done tabs and task subtasks
-- Parts Finder redirect using VIN query parameter
-- AI chat placeholder UI (no backend integration)
-- Offline-ready service worker (Vite PWA plugin)
-- All user data stored locally in IndexedDB
+https://alejanpa17.github.io/myOldtimer/
+
+## Core Features
+
+- Vehicle profile and photo (camera/gallery upload)
+- Diagnostics, fault codes, and relay tester UI
+- Maintenance overview and history tracking
+- Replace history tracking
+- Checklist with tasks/subtasks
+- Fuel efficiency logging
+- Parts finder using VIN redirect
+- AI chat placeholder screen
+- Offline-capable PWA
+- Local-only data storage (IndexedDB)
 
 ## Stack
 
@@ -38,17 +42,15 @@ npm run build
 
 ## Deploy to GitHub Pages
 
-The repository includes a workflow at `.github/workflows/deploy-pages.yml` that deploys on every push to `main`.
+This repo uses `.github/workflows/deploy-pages.yml` and deploys on every push to `main`.
 
 1. Push your latest commit to `main`.
 2. In GitHub, open `Settings` -> `Pages`.
-3. Set `Source` to `GitHub Actions`.
+3. Set `Source` to `GitHub Actions` (one-time).
 4. Wait for workflow **Deploy to GitHub Pages** to finish.
 5. Open `https://<your-username>.github.io/<your-repo-name>/` on your phone.
 
-### Local build with GitHub Pages base path
-
-Use this when you want to test the same build behavior locally:
+## Optional: Local Pages Build
 
 ```powershell
 $env:VITE_BASE_PATH="/myOldtimer/"

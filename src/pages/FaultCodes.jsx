@@ -95,9 +95,6 @@ function FaultCodes() {
         >
           View History
         </button>
-        <button type="button" onClick={() => navigate("/diagnostics")}>
-          Back
-        </button>
       </section>
     </main>
   );

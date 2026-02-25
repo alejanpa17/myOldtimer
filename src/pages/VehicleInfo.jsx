@@ -4,6 +4,7 @@ import { dbDelete, dbGet, dbSet } from "../lib/db";
 import { DEFAULT_VEHICLE_INFO, STORAGE_KEYS } from "../lib/constants";
 import VehicleImageModal from "../components/VehicleImageModal";
 import ActionFeedbackModal from "../components/ActionFeedbackModal";
+import VehicleImageEmptyState from "../components/VehicleImageEmptyState";
 
 function VehicleInfo() {
   const navigate = useNavigate();
@@ -75,11 +76,6 @@ function VehicleInfo() {
 
   return (
     <main className="page">
-      <div className="topbar">
-        <button type="button" onClick={() => navigate("/")}>
-          Back
-        </button>
-      </div>
       <h2 className="page-title">Vehicle Info</h2>
       <section className="card" style={{ marginBottom: 12, textAlign: "center" }}>
         {vehicleImage ? (
@@ -91,18 +87,10 @@ function VehicleInfo() {
             onClick={() => setShowImageModal(true)}
           />
         ) : (
-          <div className="vehicle-image placeholder" style={{ minHeight: 160 }}>
-            <div>
-              <p className="muted">No vehicle image uploaded yet.</p>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => setShowImageModal(true)}
-              >
-                Add Vehicle Image
-              </button>
-            </div>
-          </div>
+          <VehicleImageEmptyState
+            minHeight={160}
+            onAdd={() => setShowImageModal(true)}
+          />
         )}
         {vehicleImage && (
           <p className="muted" style={{ marginBottom: 0 }}>

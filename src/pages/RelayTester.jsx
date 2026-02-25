@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { dbGet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 
 function RelayTester() {
-  const navigate = useNavigate();
   const [connected, setConnected] = useState(false);
   const [pendingCommand, setPendingCommand] = useState("");
   const [status, setStatus] = useState("");
@@ -49,14 +47,6 @@ function RelayTester() {
       </section>
 
       {status && <p className="muted">{status}</p>}
-
-      <button
-        type="button"
-        style={{ marginTop: 12 }}
-        onClick={() => navigate("/diagnostics")}
-      >
-        Back
-      </button>
 
       {pendingCommand && (
         <div className="modal-backdrop" role="presentation">

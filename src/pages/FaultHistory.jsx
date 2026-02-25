@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { dbGet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 import { formatDateTime } from "../lib/helpers";
 
 function FaultHistory() {
-  const navigate = useNavigate();
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
@@ -39,14 +37,6 @@ function FaultHistory() {
           </article>
         ))}
       </section>
-
-      <button
-        type="button"
-        style={{ marginTop: 12 }}
-        onClick={() => navigate("/diagnostics/fault-codes")}
-      >
-        Back
-      </button>
     </main>
   );
 }

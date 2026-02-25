@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { dbGet } from "../lib/db";
 import { DEFAULT_VEHICLE_INFO, STORAGE_KEYS } from "../lib/constants";
 import { createId } from "../lib/helpers";
 
 function AIChat() {
-  const navigate = useNavigate();
   const [vehicleInfo, setVehicleInfo] = useState(DEFAULT_VEHICLE_INFO);
   const [chatLog, setChatLog] = useState([]);
   const [input, setInput] = useState("");
@@ -54,11 +52,6 @@ function AIChat() {
 
   return (
     <main className="page">
-      <div className="topbar">
-        <button type="button" onClick={() => navigate("/")}>
-          Back
-        </button>
-      </div>
       <h2 className="page-title">AI Chat</h2>
 
       <section className="list" style={{ marginBottom: 12 }}>

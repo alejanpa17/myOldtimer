@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { dbGet, dbSet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 import { createId } from "../lib/helpers";
 import MaintenanceEntryModal from "../components/MaintenanceEntryModal";
+import EditToggleButton from "../components/EditToggleButton";
 import { syncMileageIfHigher } from "../lib/mileage";
 
 function todayIsoDate() {
@@ -49,7 +49,6 @@ function createEmptyForm() {
 }
 
 function ReplaceHistory() {
-  const navigate = useNavigate();
   const pressTimer = useRef(null);
 
   const [entries, setEntries] = useState([]);
@@ -184,21 +183,6 @@ function ReplaceHistory() {
 
   return (
     <main className="page">
-      <div className="topbar">
-        <button type="button" onClick={() => navigate("/maintenance")}>
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setSelectMode(!selectMode);
-            setSelectedIds([]);
-          }}
-        >
-          {selectMode ? "Cancel Select" : "Edit Mode"}
-        </button>
-      </div>
-
       <h2 className="page-title">Replace History</h2>
 
       <section className="list">
@@ -254,6 +238,15 @@ function ReplaceHistory() {
       >
         +
       </button>
+
+      <EditToggleButton
+        active={selectMode}
+        onClick={() => {
+          setSelectMode(!selectMode);
+          setSelectedIds([]);
+        }}
+        className="fab fab-left"
+      />
 
       {menuEntry && (
         <div className="modal-backdrop" role="presentation">

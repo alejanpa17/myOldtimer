@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { dbGet, dbSet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 import SaveCancelModal from "../components/SaveCancelModal";
+import EditToggleButton from "../components/EditToggleButton";
 import { parseNonNegativeMileage } from "../lib/mileage";
 import {
   MAINTENANCE_STATUS,
@@ -369,14 +370,6 @@ function Maintenance() {
 
   return (
     <main className="page page-with-sticky-cta">
-      <div className="topbar">
-        <button type="button" onClick={() => navigate("/")}>
-          Back
-        </button>
-        <button type="button" onClick={toggleManageMode}>
-          {manageMode ? "Close Manage" : "Manage"}
-        </button>
-      </div>
       <h2 className="page-title">Maintenance Overview</h2>
 
       <section className="card field-grid">
@@ -506,6 +499,13 @@ function Maintenance() {
           +
         </button>
       )}
+
+      <EditToggleButton
+        active={manageMode}
+        onClick={toggleManageMode}
+        label="Manage"
+        className="fab fab-left"
+      />
 
       <SaveCancelModal
         open={showCategoryModal}

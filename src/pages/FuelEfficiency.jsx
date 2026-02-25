@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { dbGet, dbSet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 import { createId } from "../lib/helpers";
@@ -82,7 +81,6 @@ function formatMetric(value, decimals = 1) {
 }
 
 function FuelEfficiency() {
-  const navigate = useNavigate();
   const [distanceMode, setDistanceMode] = useState(DISTANCE_MODE.odometer);
   const [form, setForm] = useState(createDefaultForm);
   const [entries, setEntries] = useState([]);
@@ -286,12 +284,6 @@ function FuelEfficiency() {
 
   return (
     <main className="page page-with-sticky-cta">
-      <div className="topbar">
-        <button type="button" onClick={() => navigate("/")}>
-          Back
-        </button>
-      </div>
-
       <h2 className="page-title">Fuel Efficiency</h2>
 
       <section className="card stack">

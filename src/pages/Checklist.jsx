@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { dbGet, dbSet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 import { createId } from "../lib/helpers";
@@ -10,6 +9,7 @@ import {
   partitionTasks,
 } from "../lib/checklist";
 import SaveCancelModal from "../components/SaveCancelModal";
+import EditToggleButton from "../components/EditToggleButton";
 import { syncMileageIfHigher } from "../lib/mileage";
 
 function createEmptyTaskEditor() {
@@ -32,7 +32,6 @@ function mapTaskToEditor(task) {
 }
 
 function Checklist() {
-  const navigate = useNavigate();
   const pressTimer = useRef(null);
   const subtaskPressTimer = useRef(null);
   const [checklist, setChecklist] = useState(DEFAULT_CHECKLIST);
@@ -327,22 +326,6 @@ function Checklist() {
 
   return (
     <main className="page">
-      <div className="topbar">
-        <button type="button" onClick={() => navigate("/")}>
-          Back
-        </button>
-        {activeTab === "todo" && (
-          <button
-            type="button"
-            onClick={() => {
-              setSelectMode(!selectMode);
-              setSelectedIds([]);
-            }}
-          >
-            {selectMode ? "Cancel Select" : "Edit Mode"}
-          </button>
-        )}
-      </div>
       <h2 className="page-title">Checklist</h2>
 
       <div className="tabs">
@@ -516,14 +499,24 @@ function Checklist() {
       )}
 
       {activeTab === "todo" && (
-        <button
-          type="button"
-          className="fab"
-          onClick={openTaskEditorForNew}
-          aria-label="Add task"
-        >
-          +
-        </button>
+        <>
+          <button
+            type="button"
+            className="fab"
+            onClick={openTaskEditorForNew}
+            aria-label="Add task"
+          >
+            +
+          </button>
+          <EditToggleButton
+            active={selectMode}
+            onClick={() => {
+              setSelectMode(!selectMode);
+              setSelectedIds([]);
+            }}
+            className="fab fab-left"
+          />
+        </>
       )}
 
       <SaveCancelModal

@@ -60,6 +60,10 @@ a {
   margin-bottom: 8px;
 }
 
+.topbar-right {
+  justify-content: flex-end;
+}
+
 .card {
   background: linear-gradient(180deg, var(--surface), var(--bg-accent));
   border: 1px solid var(--border);
@@ -119,6 +123,28 @@ button,
   padding: 12px 14px;
   background: var(--surface);
   cursor: pointer;
+}
+
+.icon-toggle-button {
+  width: 48px;
+  min-height: 48px;
+  border-radius: 999px;
+  padding: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+}
+
+.icon-toggle-button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-toggle-active {
+  background: var(--accent);
+  color: #111827;
+  border-color: #f59e0b;
 }
 
 button:disabled,
@@ -234,6 +260,16 @@ button:disabled,
   background: var(--accent);
   color: #111827;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+}
+
+.fab-left {
+  left: 20px;
+  right: auto;
+}
+
+.icon-toggle-button.fab svg {
+  width: 24px;
+  height: 24px;
 }
 
 .tabs {
@@ -514,6 +550,48 @@ button:disabled,
 .checklist-subtask-done {
   text-decoration: line-through;
   color: #64748b;
+}
+
+.route-transition {
+  animation-duration: 220ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+.route-transition-forward {
+  animation-name: route-slide-forward;
+}
+
+.route-transition-back {
+  animation-name: route-slide-back;
+}
+
+@keyframes route-slide-forward {
+  from {
+    opacity: 0.4;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes route-slide-back {
+  from {
+    opacity: 0.4;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition {
+    animation: none;
+  }
 }
 
 @media (min-width: 720px) {

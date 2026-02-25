@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { dbDelete, dbGet, dbSet } from "../lib/db";
 import { DEFAULT_VEHICLE_INFO, STORAGE_KEYS } from "../lib/constants";
 import VehicleImageModal from "../components/VehicleImageModal";
+import VehicleImageEmptyState from "../components/VehicleImageEmptyState";
 import { parseNonNegativeMileage } from "../lib/mileage";
 
 function Home() {
@@ -77,18 +78,7 @@ function Home() {
             onClick={() => setShowImageModal(true)}
           />
         ) : (
-          <div className="vehicle-image placeholder">
-            <div>
-              <p className="muted">No vehicle image yet</p>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => setShowImageModal(true)}
-              >
-                Add Vehicle
-              </button>
-            </div>
-          </div>
+          <VehicleImageEmptyState onAdd={() => setShowImageModal(true)} />
         )}
       </section>
 
