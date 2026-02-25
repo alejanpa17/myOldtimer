@@ -10,8 +10,8 @@ registerSW({ immediate: true });
 const isSubpathDeploy = import.meta.env.BASE_URL !== "/";
 const Router = isSubpathDeploy ? HashRouter : BrowserRouter;
 const routerProps = isSubpathDeploy
-  ? { basename: import.meta.env.BASE_URL }
-  : {};
+  ? {}
+  : { basename: import.meta.env.BASE_URL };
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
