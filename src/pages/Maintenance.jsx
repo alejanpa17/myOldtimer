@@ -382,16 +382,24 @@ function Maintenance() {
             : "Not set yet (set it on Home screen)."}
         </p>
         <div className="maintenance-status-summary">
-          <span className="chip status-chip status-ok">OK: {statusSummary.ok}</span>
-          <span className="chip status-chip status-dueSoon">
-            Due Soon: {statusSummary.dueSoon}
-          </span>
-          <span className="chip status-chip status-overdue">
-            Overdue: {statusSummary.overdue}
-          </span>
-          <span className="chip status-chip status-unknown">
-            Needs Setup: {statusSummary.unknown}
-          </span>
+          {statusSummary.ok > 0 && (
+            <span className="chip status-chip status-ok">OK: {statusSummary.ok}</span>
+          )}
+          {statusSummary.dueSoon > 0 && (
+            <span className="chip status-chip status-dueSoon">
+              Due Soon: {statusSummary.dueSoon}
+            </span>
+          )}
+          {statusSummary.overdue > 0 && (
+            <span className="chip status-chip status-overdue">
+              Overdue: {statusSummary.overdue}
+            </span>
+          )}
+          {statusSummary.unknown > 0 && (
+            <span className="chip status-chip status-unknown">
+              Needs Setup: {statusSummary.unknown}
+            </span>
+          )}
         </div>
       </section>
 
@@ -500,7 +508,7 @@ function Maintenance() {
           Replace History
         </button>
         <button type="button" onClick={() => navigate("/maintenance/history")}>
-          Maintenance List
+          Maintenance History
         </button>
       </section>
 

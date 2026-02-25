@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dbGet, dbSet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 import { createId } from "../lib/helpers";
@@ -59,13 +59,10 @@ function createEmptyForm() {
 }
 
 function MaintenanceHistory() {
-  const pressTimer = useRef(null);
-
   const [categories, setCategories] = useState([]);
   const [entries, setEntries] = useState([]);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [menuEntry, setMenuEntry] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editorTitle, setEditorTitle] = useState("Add Maintenance Entry");
   const [form, setForm] = useState(createEmptyForm());
@@ -118,26 +115,6 @@ function MaintenanceHistory() {
     await dbSet(STORAGE_KEYS.maintenanceHistory, nextEntries);
   };
 
-  const clearTimer = () => {
-    if (pressTimer.current) {
-      clearTimeout(pressTimer.current);
-      pressTimer.current = null;
-    }
-  };
-
-  const handleLongPressStart = (entry) => {
-    clearTimer();
-    pressTimer.current = setTimeout(() => {
-      setMenuEntry(entry);
-    }, 550);
-  };
-
-  const deleteSingle = async (id) => {
-    const nextEntries = entries.filter((entry) => entry.id !== id);
-    await saveEntries(nextEntries);
-    setMenuEntry(null);
-  };
-
   const toggleSelect = (id) => {
     setSelectedIds((current) =>
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id]
@@ -172,7 +149,6 @@ function MaintenanceHistory() {
     });
     setFormError("");
     setShowEditor(true);
-    setMenuEntry(null);
   };
 
   const closeEditor = () => {
@@ -236,30 +212,47 @@ function MaintenanceHistory() {
             .map((id) => categoryById.get(id)?.name)
             .filter(Boolean);
           return (
-            <article
+            <div
               key={entry.id}
-              className="card"
-              onPointerDown={() => handleLongPressStart(entry)}
-              onPointerUp={clearTimer}
-              onPointerLeave={clearTimer}
+              className={`maintenance-entry-row ${
+                selectMode ? "maintenance-entry-row-manage" : ""
+              }`}
             >
-              {selectMode && (
-                <label className="item-row" style={{ display: "flex", gap: 8 }}>
+              <article className="card maintenance-entry-card">
+                <h3 className="item-title">
+                  {names.join(", ") || "No linked category"}
+                </h3>
+                <p className="item-row">Date: {entry.date || "N/A"}</p>
+                <p className="item-row">Kilometers: {entry.kilometers || "N/A"}</p>
+                <p className="item-row">Comment: {entry.comment || "N/A"}</p>
+              </article>
+              <div className="maintenance-side-controls" aria-hidden={!selectMode}>
+                <label className="maintenance-side-check">
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(entry.id)}
                     onChange={() => toggleSelect(entry.id)}
+                    aria-label={`Select maintenance entry ${entry.date || entry.id}`}
+                    tabIndex={selectMode ? 0 : -1}
                   />
-                  Select
                 </label>
-              )}
-              <h3 className="item-title">
-                {names.join(", ") || "No linked category"}
-              </h3>
-              <p className="item-row">Date: {entry.date || "N/A"}</p>
-              <p className="item-row">Kilometers: {entry.kilometers || "N/A"}</p>
-              <p className="item-row">Comment: {entry.comment || "N/A"}</p>
-            </article>
+                <button
+                  type="button"
+                  className="maintenance-gear-button"
+                  onClick={() => openEditEditor(entry)}
+                  aria-label={`Configure maintenance entry ${entry.date || entry.id}`}
+                  title="Configure entry"
+                  tabIndex={selectMode ? 0 : -1}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M19.4 13.5a7.8 7.8 0 0 0 .1-1.5 7.8 7.8 0 0 0-.1-1.5l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.2a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-2.6-1.5l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-2.6 1.5l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.3a.5.5 0 0 0 .1.6l2 1.6a7.8 7.8 0 0 0-.1 1.5 7.8 7.8 0 0 0 .1 1.5l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.2c.1.2.4.3.6.2l2.4-1a7.3 7.3 0 0 0 2.6 1.5l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6a7.3 7.3 0 0 0 2.6-1.5l2.4 1c.2.1.5 0 .6-.2l1.9-3.2a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
           );
         })}
       </section>
@@ -292,27 +285,6 @@ function MaintenanceHistory() {
         }}
         className="fab fab-left"
       />
-
-      {menuEntry && (
-        <div className="modal-backdrop" role="presentation">
-          <div className="modal stack">
-            <h3 style={{ margin: 0 }}>Entry Actions</h3>
-            <button type="button" onClick={() => openEditEditor(menuEntry)}>
-              Edit
-            </button>
-            <button
-              type="button"
-              className="btn-danger"
-              onClick={() => deleteSingle(menuEntry.id)}
-            >
-              Delete
-            </button>
-            <button type="button" onClick={() => setMenuEntry(null)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       <MaintenanceEntryModal
         open={showEditor}
