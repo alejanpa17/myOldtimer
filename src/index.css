@@ -756,19 +756,6 @@ button:focus-visible,
   }
 }
 
-@media (max-width: 640px) {
-  .modal-backdrop {
-    align-items: flex-end;
-  }
-
-  .modal {
-    max-width: none;
-    max-height: calc(100vh - 24px);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-}
-
 @media (min-width: 720px) {
   .page {
     padding: 22px 20px 110px;

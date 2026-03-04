@@ -382,7 +382,8 @@ function Checklist() {
                         handleSubtaskLongPressStart(event, task.id, subtask)
                       }
                       onPointerUp={clearSubtaskTimer}
-                      onPointerLeave={clearSubtaskTimer}
+                      onPointerCancel={clearSubtaskTimer}
+                      onContextMenu={(event) => event.preventDefault()}
                     >
                       <label className="checklist-subtask-check">
                         <input
@@ -478,7 +479,8 @@ function Checklist() {
                       handleSubtaskLongPressStart(event, task.id, subtask)
                     }
                     onPointerUp={clearSubtaskTimer}
-                    onPointerLeave={clearSubtaskTimer}
+                    onPointerCancel={clearSubtaskTimer}
+                    onContextMenu={(event) => event.preventDefault()}
                   >
                     <label className="checklist-subtask-check checklist-subtask-done-row">
                       <input
