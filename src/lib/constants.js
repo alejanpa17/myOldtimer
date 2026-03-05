@@ -28,6 +28,11 @@ export const STORAGE_KEYS = {
   checklistData: "checklistData",
   fuelEfficiencyEntries: "fuelEfficiencyEntries",
   fuelEfficiencyMode: "fuelEfficiencyMode",
+  aiApiKey: "aiApiKey",
+  aiChatLog: "aiChatLog",
+  aiModel: "aiModel",
+  aiTemperature: "aiTemperature",
+  aiMaxOutputTokens: "aiMaxOutputTokens",
 };
 
 export const MAINTENANCE_CATEGORIES = [
