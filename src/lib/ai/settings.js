@@ -38,6 +38,20 @@ export function normalizeMaxOutputTokens(value) {
   return rounded;
 }
 
+export function normalizeDebugFlag(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value === 1;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "1" || normalized === "true" || normalized === "yes";
+  }
+  return false;
+}
+
 function fallbackKey(storageKey) {
   return `${LOCAL_FALLBACK_PREFIX}:${storageKey}`;
 }

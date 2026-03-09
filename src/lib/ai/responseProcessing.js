@@ -1,5 +1,6 @@
 import { DEFAULT_VEHICLE_INFO } from "../constants";
 import { createId } from "../helpers";
+import { aiDebugLog } from "./debug";
 
 const VEHICLE_FIELDS = Object.keys(DEFAULT_VEHICLE_INFO);
 
@@ -135,6 +136,7 @@ function normalizeProposedUpdates(rawUpdates) {
     year: "modelYear",
     model_year: "modelYear",
     modelyear: "modelYear",
+    gen: "generation",
     fuel: "fuelType",
     fuel_type: "fuelType",
     gearbox_type: "gearbox",
@@ -187,15 +189,15 @@ function extractGroundingMetadata(payload) {
   return candidate?.groundingMetadata || candidate?.grounding_metadata || null;
 }
 
-export function extractGroundedSources(payload) {
+function extractGroundingChunks(payload) {
   const groundingMetadata = extractGroundingMetadata(payload);
   const chunks = groundingMetadata?.groundingChunks || groundingMetadata?.grounding_chunks;
-  if (!Array.isArray(chunks)) {
-    return [];
-  }
+  return Array.isArray(chunks) ? chunks : [];
+}
 
+export function extractGroundedSources(payload) {
   const dedupe = new Set();
-  return chunks
+  const sources = extractGroundingChunks(payload)
     .map((chunk) => {
       const web = chunk?.web;
       if (!web?.uri) {
@@ -216,6 +218,144 @@ export function extractGroundedSources(payload) {
       dedupe.add(source.uri);
       return true;
     });
+  aiDebugLog("response_processing", "extracted_sources", {
+    count: sources.length,
+  });
+  return sources;
+}
+
+function parseYouTubeVideoId(uri) {
+  try {
+    const parsed = new URL(uri);
+    const host = parsed.hostname.toLowerCase();
+    const pathSegments = parsed.pathname.split("/").filter(Boolean);
+
+    if (host === "youtu.be" && pathSegments[0]) {
+      return pathSegments[0];
+    }
+
+    if (host.endsWith("youtube.com")) {
+      if (parsed.pathname === "/watch") {
+        return parsed.searchParams.get("v");
+      }
+      if (
+        (pathSegments[0] === "shorts" || pathSegments[0] === "live") &&
+        pathSegments[1]
+      ) {
+        return pathSegments[1];
+      }
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function extractYouTubeIdsFromText(text) {
+  if (!text || typeof text !== "string") {
+    return [];
+  }
+
+  const matches = [];
+  const patterns = [
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?[^ \n]*v=([A-Za-z0-9_-]{6,})/gi,
+    /(?:https?:\/\/)?(?:www\.)?youtu\.be\/([A-Za-z0-9_-]{6,})/gi,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([A-Za-z0-9_-]{6,})/gi,
+  ];
+
+  patterns.forEach((pattern) => {
+    let match = pattern.exec(text);
+    while (match) {
+      if (match[1]) {
+        matches.push(match[1]);
+      }
+      match = pattern.exec(text);
+    }
+  });
+
+  return matches;
+}
+
+function isGroundingRedirectUrl(uri) {
+  try {
+    const parsed = new URL(uri);
+    return (
+      parsed.hostname.toLowerCase() === "vertexaisearch.cloud.google.com" &&
+      parsed.pathname.includes("/grounding-api-redirect/")
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function extractGroundedVideos(payload, rawText = "") {
+  const dedupe = new Set();
+  const videosFromChunks = extractGroundingChunks(payload)
+    .map((chunk) => {
+      const web = chunk?.web;
+      const uri = web?.uri ? String(web.uri) : "";
+      if (!uri) {
+        return null;
+      }
+
+      const videoId = parseYouTubeVideoId(uri);
+      if (!videoId && !isGroundingRedirectUrl(uri)) {
+        return null;
+      }
+
+      const canonicalUrl = videoId
+        ? `https://www.youtube.com/watch?v=${videoId}`
+        : uri;
+
+      return {
+        videoId: videoId || "",
+        url: canonicalUrl,
+        sourceUrl: uri,
+        title: web?.title ? String(web.title) : "YouTube Video",
+        thumbnailUrl: videoId
+          ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+          : "",
+      };
+    })
+    .filter((video) => {
+      if (!video) {
+        return false;
+      }
+      const dedupeKey = video.videoId || video.sourceUrl;
+      if (dedupe.has(dedupeKey)) {
+        return false;
+      }
+      dedupe.add(dedupeKey);
+      return true;
+    });
+
+  const videosFromText = extractYouTubeIdsFromText(rawText)
+    .map((videoId) => ({
+      videoId,
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      sourceUrl: `https://www.youtube.com/watch?v=${videoId}`,
+      title: "YouTube Video",
+      thumbnailUrl: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+    }))
+    .filter((video) => {
+      if (!video?.videoId) {
+        return false;
+      }
+      if (dedupe.has(video.videoId)) {
+        return false;
+      }
+      dedupe.add(video.videoId);
+      return true;
+    });
+
+  const videos = [...videosFromChunks, ...videosFromText];
+  aiDebugLog("response_processing", "extracted_videos", {
+    chunkVideos: videosFromChunks.length,
+    textVideos: videosFromText.length,
+    total: videos.length,
+  });
+  return videos;
 }
 
 export function extractAssistantResponse(rawText) {
@@ -234,10 +374,15 @@ export function extractAssistantResponse(rawText) {
     assistantMessage = "I have a response ready.";
   }
 
-  return {
+  const result = {
     assistantMessage,
     proposedUpdates,
   };
+  aiDebugLog("response_processing", "assistant_response_parsed", {
+    assistantMessageLength: assistantMessage.length,
+    proposedUpdateFields: Object.keys(proposedUpdates),
+  });
+  return result;
 }
 
 export function removeInlineUrls(text) {
@@ -295,6 +440,7 @@ export function formatFieldLabel(field) {
     vin: "VIN",
     brand: "Brand",
     model: "Model",
+    generation: "Generation",
     engine: "Engine",
     fuelType: "Fuel Type",
     gearbox: "Gearbox",
@@ -342,6 +488,53 @@ export function sanitizeChatLog(raw) {
                   typeof source.title === "string" && source.title.trim()
                     ? source.title
                     : source.uri,
+              };
+            })
+            .filter(Boolean)
+        : [],
+      videos: Array.isArray(item.videos)
+        ? item.videos
+            .map((video) => {
+              if (!video || typeof video !== "object") {
+                return null;
+              }
+              const videoId =
+                typeof video.videoId === "string" ? video.videoId.trim() : "";
+              const sourceUrl =
+                typeof video.sourceUrl === "string" && video.sourceUrl.trim()
+                  ? video.sourceUrl
+                  : "";
+              const url =
+                typeof video.url === "string" && video.url.trim()
+                  ? video.url
+                  : sourceUrl || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : "");
+              if (!url) {
+                return null;
+              }
+              const title =
+                typeof video.title === "string" && video.title.trim()
+                  ? video.title
+                  : "YouTube Video";
+              const thumbnailUrl =
+                typeof video.thumbnailUrl === "string" && video.thumbnailUrl.trim()
+                  ? video.thumbnailUrl
+                  : videoId
+                    ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+                    : "";
+              const thumbnailSrc =
+                typeof video.thumbnailSrc === "string" && video.thumbnailSrc.trim()
+                  ? video.thumbnailSrc
+                  : thumbnailUrl;
+              const loading = Boolean(video.loading);
+
+              return {
+                videoId,
+                url,
+                sourceUrl: sourceUrl || url,
+                title,
+                thumbnailUrl,
+                thumbnailSrc,
+                loading,
               };
             })
             .filter(Boolean)

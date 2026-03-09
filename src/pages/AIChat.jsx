@@ -15,25 +15,51 @@ import {
   DEFAULT_TEMPERATURE,
   GEMINI_ENDPOINT_BASE,
 } from "../lib/ai/constants";
-import { buildVehicleContext, shouldUseSearchGrounding } from "../lib/ai/context";
+import { buildVehicleContext } from "../lib/ai/context";
 import {
   buildUpdateRows,
   createGreetingMessage,
   extractAssistantResponse,
   extractGeminiText,
+  extractGroundedVideos,
   extractGroundedSources,
   formatFieldLabel,
-  removeInlineUrls,
   sanitizeChatLog,
-  toPlainTextWithoutLinkWords,
 } from "../lib/ai/responseProcessing";
 import {
   loadValueWithFallback,
+  normalizeDebugFlag,
   normalizeMaxOutputTokens,
   normalizeModel,
   normalizeTemperature,
   saveValueWithFallback,
 } from "../lib/ai/settings";
+import {
+  prepareGroundedVideosForDisplay,
+  resolveGroundedVideosInBackground,
+  normalizeThumbnailCache,
+  normalizeVideoRedirectCache,
+} from "../lib/ai/videos";
+import { aiDebugError, aiDebugLog, setAiDebugEnabled } from "../lib/ai/debug";
+
+function normalizeOptionalBoolean(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value === 1;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "1" || normalized === "true" || normalized === "yes") {
+      return true;
+    }
+    if (normalized === "0" || normalized === "false" || normalized === "no") {
+      return false;
+    }
+  }
+  return null;
+}
 
 function AIChat() {
   const [vehicleInfo, setVehicleInfo] = useState(DEFAULT_VEHICLE_INFO);
@@ -52,6 +78,10 @@ function AIChat() {
   const [savedMaxOutputTokens, setSavedMaxOutputTokens] = useState(
     DEFAULT_MAX_OUTPUT_TOKENS
   );
+  const [debugEnabledInput, setDebugEnabledInput] = useState(false);
+  const [savedDebugEnabled, setSavedDebugEnabled] = useState(false);
+  const [popupThumbnailsEnabledInput, setPopupThumbnailsEnabledInput] = useState(false);
+  const [savedPopupThumbnailsEnabled, setSavedPopupThumbnailsEnabled] = useState(false);
 
   const [status, setStatus] = useState("");
   const [settingsStatus, setSettingsStatus] = useState("");
@@ -59,6 +89,8 @@ function AIChat() {
   const [pendingVehicleUpdate, setPendingVehicleUpdate] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [videoThumbnailCache, setVideoThumbnailCache] = useState({});
+  const [videoRedirectCache, setVideoRedirectCache] = useState({});
 
   const threadEndRef = useRef(null);
 
@@ -66,7 +98,29 @@ function AIChat() {
     setChatLog((current) => {
       const next = [...current, ...messages];
       dbSet(STORAGE_KEYS.aiChatLog, next);
+      aiDebugLog("chat", "appended_messages", {
+        appended: messages.length,
+        total: next.length,
+      });
       return next;
+    });
+  };
+
+  const updateChatMessageById = (messageId, updater) => {
+    setChatLog((current) => {
+      let changed = false;
+      const next = current.map((message) => {
+        if (message.id !== messageId) {
+          return message;
+        }
+        changed = true;
+        return updater(message);
+      });
+
+      if (changed) {
+        dbSet(STORAGE_KEYS.aiChatLog, next);
+      }
+      return changed ? next : current;
     });
   };
 
@@ -80,6 +134,10 @@ function AIChat() {
       loadValueWithFallback(STORAGE_KEYS.aiModel, DEFAULT_AI_MODEL),
       loadValueWithFallback(STORAGE_KEYS.aiTemperature, DEFAULT_TEMPERATURE),
       loadValueWithFallback(STORAGE_KEYS.aiMaxOutputTokens, DEFAULT_MAX_OUTPUT_TOKENS),
+      loadValueWithFallback(STORAGE_KEYS.aiVideoThumbnailsEnabled, false),
+      loadValueWithFallback(STORAGE_KEYS.aiVideoThumbnailCache, {}),
+      loadValueWithFallback(STORAGE_KEYS.aiVideoRedirectCache, {}),
+      loadValueWithFallback(STORAGE_KEYS.aiDebug, false),
     ])
       .then(
         ([
@@ -89,6 +147,10 @@ function AIChat() {
           storedModel,
           storedTemperature,
           storedMaxOutputTokens,
+          storedVideoThumbnailsEnabled,
+          storedVideoThumbnailCache,
+          storedVideoRedirectCache,
+          storedAiDebug,
         ]) => {
           if (!mounted) {
             return;
@@ -97,14 +159,19 @@ function AIChat() {
           const normalizedModel = normalizeModel(storedModel);
           const normalizedTemperature = normalizeTemperature(storedTemperature);
           const normalizedMaxOutputTokens = normalizeMaxOutputTokens(storedMaxOutputTokens);
+          const normalizedDebugEnabled = normalizeDebugFlag(storedAiDebug);
           const normalizedChat = sanitizeChatLog(storedChatLog);
-          const vehicleLabel = info?.model?.trim() || "Vehicle";
+          const normalizedInfo = {
+            ...DEFAULT_VEHICLE_INFO,
+            ...(info || {}),
+          };
+          const vehicleLabel = normalizedInfo?.model?.trim() || "Vehicle";
           const nextChat =
             normalizedChat.length > 0
               ? normalizedChat
               : [createGreetingMessage(vehicleLabel)];
 
-          setVehicleInfo(info);
+          setVehicleInfo(normalizedInfo);
           setSavedApiKey(apiKey || "");
           setApiKeyInput(apiKey || "");
           setSavedModel(normalizedModel);
@@ -113,7 +180,23 @@ function AIChat() {
           setTemperatureInput(String(normalizedTemperature));
           setSavedMaxOutputTokens(normalizedMaxOutputTokens);
           setMaxOutputTokensInput(String(normalizedMaxOutputTokens));
+          setSavedDebugEnabled(normalizedDebugEnabled);
+          setDebugEnabledInput(normalizedDebugEnabled);
           setChatLog(nextChat);
+          setVideoThumbnailCache(normalizeThumbnailCache(storedVideoThumbnailCache));
+          setVideoRedirectCache(normalizeVideoRedirectCache(storedVideoRedirectCache));
+          const enabled = Boolean(normalizeOptionalBoolean(storedVideoThumbnailsEnabled));
+          setPopupThumbnailsEnabledInput(enabled);
+          setSavedPopupThumbnailsEnabled(enabled);
+          setAiDebugEnabled(normalizedDebugEnabled);
+
+          aiDebugLog("init", "loaded_state", {
+            chatMessages: nextChat.length,
+            model: normalizedModel,
+            temperature: normalizedTemperature,
+            maxOutputTokens: normalizedMaxOutputTokens,
+            debugEnabled: normalizedDebugEnabled,
+          });
 
           if (normalizedChat.length === 0) {
             dbSet(STORAGE_KEYS.aiChatLog, nextChat);
@@ -130,6 +213,9 @@ function AIChat() {
               normalizedMaxOutputTokens
             );
           }
+          if (normalizedDebugEnabled !== storedAiDebug) {
+            saveValueWithFallback(STORAGE_KEYS.aiDebug, normalizedDebugEnabled);
+          }
         }
       )
       .catch(() => {
@@ -138,6 +224,7 @@ function AIChat() {
         }
         setChatLog([createGreetingMessage("Vehicle")]);
         setStatus("Could not load saved AI settings. Using defaults.");
+        aiDebugError("init", "load_failed", new Error("load_failed"));
       });
 
     return () => {
@@ -151,11 +238,18 @@ function AIChat() {
 
   const vehicleContext = useMemo(() => buildVehicleContext(vehicleInfo), [vehicleInfo]);
 
+  const handlePopupThumbnailsEnabledChange = async (checked) => {
+    setPopupThumbnailsEnabledInput(Boolean(checked));
+    setSettingsStatus("");
+  };
+
   const saveSettings = async () => {
     const nextApiKey = apiKeyInput.trim();
     const nextModel = normalizeModel(modelInput);
     const nextTemperature = normalizeTemperature(temperatureInput);
     const nextMaxOutputTokens = normalizeMaxOutputTokens(maxOutputTokensInput);
+    const nextDebugEnabled = normalizeDebugFlag(debugEnabledInput);
+    const nextVideoThumbnailsEnabled = Boolean(popupThumbnailsEnabledInput);
 
     try {
       const results = await Promise.all([
@@ -163,6 +257,11 @@ function AIChat() {
         saveValueWithFallback(STORAGE_KEYS.aiModel, nextModel),
         saveValueWithFallback(STORAGE_KEYS.aiTemperature, nextTemperature),
         saveValueWithFallback(STORAGE_KEYS.aiMaxOutputTokens, nextMaxOutputTokens),
+        saveValueWithFallback(
+          STORAGE_KEYS.aiVideoThumbnailsEnabled,
+          nextVideoThumbnailsEnabled
+        ),
+        saveValueWithFallback(STORAGE_KEYS.aiDebug, nextDebugEnabled),
       ]);
 
       if (results.some((result) => !result)) {
@@ -176,13 +275,25 @@ function AIChat() {
       setTemperatureInput(String(nextTemperature));
       setSavedMaxOutputTokens(nextMaxOutputTokens);
       setMaxOutputTokensInput(String(nextMaxOutputTokens));
+      setSavedDebugEnabled(nextDebugEnabled);
+      setDebugEnabledInput(nextDebugEnabled);
+      setSavedPopupThumbnailsEnabled(nextVideoThumbnailsEnabled);
+      setAiDebugEnabled(nextDebugEnabled);
       setStatus("Settings saved.");
       setSettingsStatus("");
       setShowSettingsModal(false);
+      aiDebugLog("settings", "saved", {
+        model: nextModel,
+        temperature: nextTemperature,
+        maxOutputTokens: nextMaxOutputTokens,
+        debugEnabled: nextDebugEnabled,
+        videoThumbnailsEnabled: nextVideoThumbnailsEnabled,
+      });
     } catch {
       setSettingsStatus(
         "Could not save settings on this device. Check browser storage permissions."
       );
+      aiDebugError("settings", "save_failed", new Error("save_failed"));
     }
   };
 
@@ -191,8 +302,11 @@ function AIChat() {
     setModelInput(savedModel);
     setTemperatureInput(String(savedTemperature));
     setMaxOutputTokensInput(String(savedMaxOutputTokens));
+    setDebugEnabledInput(savedDebugEnabled);
+    setPopupThumbnailsEnabledInput(savedPopupThumbnailsEnabled);
     setSettingsStatus("");
     setShowSettingsModal(false);
+    aiDebugLog("settings", "closed_without_save");
   };
 
   const toggleSettingsModal = () => {
@@ -204,7 +318,10 @@ function AIChat() {
       setModelInput(savedModel);
       setTemperatureInput(String(savedTemperature));
       setMaxOutputTokensInput(String(savedMaxOutputTokens));
+      setDebugEnabledInput(savedDebugEnabled);
+      setPopupThumbnailsEnabledInput(savedPopupThumbnailsEnabled);
       setSettingsStatus("");
+      aiDebugLog("settings", "opened");
       return true;
     });
   };
@@ -234,6 +351,7 @@ function AIChat() {
         role: "ai",
         text: "No profile changes were applied.",
       });
+      aiDebugLog("vehicle_update", "apply_skipped_no_changes");
       return;
     }
 
@@ -250,6 +368,9 @@ function AIChat() {
       role: "ai",
       text: "Vehicle info updated successfully.",
     });
+    aiDebugLog("vehicle_update", "applied", {
+      changedFields: Object.keys(nextUpdates),
+    });
   };
 
   const cancelPendingVehicleUpdate = () => {
@@ -263,6 +384,7 @@ function AIChat() {
       role: "ai",
       text: "Update canceled. Vehicle info was not changed.",
     });
+    aiDebugLog("vehicle_update", "canceled");
   };
 
   const editPendingVehicleUpdateField = (field, value) => {
@@ -289,16 +411,22 @@ function AIChat() {
     const key = savedApiKey.trim();
     const userText = input.trim();
     if (!userText || isSending) {
+      aiDebugLog("send", "blocked_empty_or_busy", {
+        hasText: Boolean(userText),
+        isSending,
+      });
       return;
     }
 
     if (pendingVehicleUpdate) {
       setStatus("Please confirm or cancel the pending profile update first.");
+      aiDebugLog("send", "blocked_pending_vehicle_update");
       return;
     }
 
     if (!key) {
       setStatus("Please save your Gemini API key first.");
+      aiDebugLog("send", "blocked_missing_api_key");
       return;
     }
 
@@ -311,8 +439,8 @@ function AIChat() {
     setIsSending(true);
     setStatus("");
 
-    const shouldGroundWithSearch =
-      savedModel === "gemini-2.5-flash" && shouldUseSearchGrounding(userText);
+    const shouldGroundWithSearch = savedModel === "gemini-2.5-flash";
+    const canLoadThumbnails = shouldGroundWithSearch && savedPopupThumbnailsEnabled;
     const vehicleContextPayload = {
       vehicle: vehicleContext,
       hasVehicleProfile: Object.values(vehicleContext).some(Boolean),
@@ -330,6 +458,11 @@ function AIChat() {
 
     try {
       const endpoint = `${GEMINI_ENDPOINT_BASE}/${savedModel}:generateContent`;
+      aiDebugLog("request", "building_payload", {
+        model: savedModel,
+        withGoogleSearch: shouldGroundWithSearch,
+        conversationMessages: conversation.length,
+      });
       const requestBody = {
         systemInstruction: {
           parts: [{ text: buildSystemPrompt() }],
@@ -344,6 +477,7 @@ function AIChat() {
       if (shouldGroundWithSearch) {
         requestBody.tools = [{ google_search: {} }];
       }
+      aiDebugLog("request", "api_request_payload", requestBody);
 
       const response = await fetch(`${endpoint}?key=${encodeURIComponent(key)}`, {
         method: "POST",
@@ -354,10 +488,21 @@ function AIChat() {
       });
 
       const payload = await response.json();
+      aiDebugLog("response", "api_raw_payload", {
+        status: response.status,
+        payload,
+      });
       if (!response.ok) {
         const apiError = payload?.error?.message || "Failed to call Gemini API.";
+        aiDebugError("response", "api_error", new Error(apiError), {
+          status: response.status,
+          payload,
+        });
         throw new Error(apiError);
       }
+      aiDebugLog("response", "api_ok", {
+        status: response.status,
+      });
 
       const rawText = extractGeminiText(payload);
       if (!rawText) {
@@ -365,14 +510,38 @@ function AIChat() {
       }
 
       const groundedSources = extractGroundedSources(payload);
+      const groundedVideos = extractGroundedVideos(payload, rawText);
       const { assistantMessage, proposedUpdates } = extractAssistantResponse(rawText);
+      aiDebugLog("response", "parsed", {
+        textLength: rawText.length,
+        sources: groundedSources.length,
+        groundedVideos: groundedVideos.length,
+        proposedUpdateFields: Object.keys(proposedUpdates),
+      });
+      const aiMessageId = createId("ai");
       const sourcesForMessage = shouldGroundWithSearch ? groundedSources : [];
-      const messageWithoutUrls = shouldGroundWithSearch
-        ? removeInlineUrls(assistantMessage)
-        : assistantMessage;
-      const messageForDisplay = toPlainTextWithoutLinkWords(messageWithoutUrls);
-      const safeAssistantMessage =
-        messageForDisplay || "I found relevant results in the sources below.";
+      let videosForMessage = [];
+      let preparedVideoPayload = null;
+      if (shouldGroundWithSearch && groundedVideos.length > 0) {
+        if (canLoadThumbnails) {
+          const prepared = prepareGroundedVideosForDisplay(
+            groundedVideos,
+            videoThumbnailCache,
+            videoRedirectCache
+          );
+          videosForMessage = prepared.videos;
+          preparedVideoPayload = {
+            videos: prepared.videos,
+            nextThumbnailCache: prepared.nextThumbnailCache,
+            nextVideoRedirectCache: prepared.nextVideoRedirectCache,
+          };
+          aiDebugLog("videos", "prepared_for_display", {
+            input: groundedVideos.length,
+            initialOutput: prepared.videos.length,
+          });
+        }
+      }
+      const safeAssistantMessage = assistantMessage;
 
       const updateRows = buildUpdateRows(vehicleInfo, proposedUpdates).filter(
         (row) => row.previousValue !== row.newValue
@@ -381,22 +550,108 @@ function AIChat() {
       if (updateRows.length > 0) {
         setPendingVehicleUpdate({ rows: updateRows });
         setShowUpdateModal(true);
+        aiDebugLog("vehicle_update", "proposal_detected", {
+          fields: updateRows.map((row) => row.field),
+        });
         appendChatMessages({
-          id: createId("ai"),
+          id: aiMessageId,
           role: "ai",
           text: "I found profile updates. Please review the popup to confirm or cancel.",
           sources: sourcesForMessage,
+          videos: videosForMessage,
         });
       } else {
         appendChatMessages({
-          id: createId("ai"),
+          id: aiMessageId,
           role: "ai",
           text: safeAssistantMessage,
           sources: sourcesForMessage,
+          videos: videosForMessage,
         });
+      }
+
+      if (preparedVideoPayload) {
+        const backgroundVideoTask = resolveGroundedVideosInBackground(
+          preparedVideoPayload.videos,
+          preparedVideoPayload.nextThumbnailCache,
+          preparedVideoPayload.nextVideoRedirectCache,
+          {
+            onProgress: ({ sourceUrl, resolvedVideo, removed }) => {
+              updateChatMessageById(aiMessageId, (message) => {
+                const currentVideos = Array.isArray(message.videos) ? message.videos : [];
+                if (currentVideos.length === 0) {
+                  return message;
+                }
+
+                const matchBySource = (video) =>
+                  String(video?.sourceUrl || video?.url || "").trim() ===
+                  String(sourceUrl || "").trim();
+
+                let nextVideos = currentVideos;
+                if (removed) {
+                  nextVideos = currentVideos.filter((video) => !matchBySource(video));
+                } else if (resolvedVideo) {
+                  let replaced = false;
+                  nextVideos = currentVideos.map((video) => {
+                    if (matchBySource(video)) {
+                      replaced = true;
+                      return resolvedVideo;
+                    }
+                    return video;
+                  });
+                  if (!replaced) {
+                    nextVideos = currentVideos;
+                  }
+                }
+
+                if (nextVideos === currentVideos) {
+                  return message;
+                }
+
+                return {
+                  ...message,
+                  videos: nextVideos,
+                };
+              });
+            },
+          }
+        );
+
+        backgroundVideoTask
+          .then(
+            ({
+              videos,
+              nextThumbnailCache,
+              nextVideoRedirectCache,
+              thumbnailCacheChanged,
+              videoRedirectCacheChanged,
+            }) => {
+              updateChatMessageById(aiMessageId, (message) => ({
+                ...message,
+                videos,
+              }));
+
+              if (thumbnailCacheChanged) {
+                setVideoThumbnailCache(nextThumbnailCache);
+                saveValueWithFallback(STORAGE_KEYS.aiVideoThumbnailCache, nextThumbnailCache);
+              }
+
+              if (videoRedirectCacheChanged) {
+                setVideoRedirectCache(nextVideoRedirectCache);
+                saveValueWithFallback(
+                  STORAGE_KEYS.aiVideoRedirectCache,
+                  nextVideoRedirectCache
+                );
+              }
+            }
+          )
+          .catch((videoError) => {
+            aiDebugError("videos", "background_resolution_failed", videoError);
+          });
       }
     } catch (error) {
       setStatus(error.message || "Failed to call Gemini API.");
+      aiDebugError("send", "request_failed", error);
       appendChatMessages({
         id: createId("ai"),
         role: "ai",
@@ -473,6 +728,10 @@ function AIChat() {
           onTemperatureChange={setTemperatureInput}
           maxOutputTokensInput={maxOutputTokensInput}
           onMaxOutputTokensChange={setMaxOutputTokensInput}
+          debugEnabledInput={debugEnabledInput}
+          onDebugEnabledChange={setDebugEnabledInput}
+          popupThumbnailsEnabledInput={popupThumbnailsEnabledInput}
+          onPopupThumbnailsEnabledChange={handlePopupThumbnailsEnabledChange}
           settingsStatus={settingsStatus}
         />
       </SaveCancelModal>

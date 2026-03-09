@@ -8,6 +8,10 @@ function AISettingsFields({
   onTemperatureChange,
   maxOutputTokensInput,
   onMaxOutputTokensChange,
+  debugEnabledInput,
+  onDebugEnabledChange,
+  popupThumbnailsEnabledInput,
+  onPopupThumbnailsEnabledChange,
   settingsStatus,
 }) {
   return (
@@ -97,6 +101,26 @@ function AISettingsFields({
           onChange={(event) => onMaxOutputTokensChange(event.target.value)}
         />
       </div>
+
+      <label className="checkbox-row" htmlFor="ai-debug-enabled">
+        <input
+          id="ai-debug-enabled"
+          type="checkbox"
+          checked={debugEnabledInput}
+          onChange={(event) => onDebugEnabledChange(event.target.checked)}
+        />
+        <span>Enable AI debug logs (console)</span>
+      </label>
+
+      <label className="checkbox-row" htmlFor="ai-popup-thumbnails-enabled">
+        <input
+          id="ai-popup-thumbnails-enabled"
+          type="checkbox"
+          checked={popupThumbnailsEnabledInput}
+          onChange={(event) => onPopupThumbnailsEnabledChange(event.target.checked)}
+        />
+        <span>Enable YouTube thumbnails</span>
+      </label>
 
       <p className="item-row" style={{ margin: 0 }}>
         Stored locally on this device only.

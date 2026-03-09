@@ -782,6 +782,75 @@ button:focus-visible,
   border-top: 1px solid rgba(148, 163, 184, 0.25);
 }
 
+.chat-videos-row {
+  margin-top: 10px;
+  margin-bottom: 0;
+  padding-bottom: 2px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chat-video-link {
+  flex: 0 0 auto;
+  display: inline-flex;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.chat-video-media {
+  position: relative;
+  width: 160px;
+  height: 90px;
+}
+
+.chat-video-thumb {
+  display: block;
+  width: 160px;
+  height: 90px;
+  object-fit: cover;
+}
+
+.chat-video-thumb-placeholder {
+  width: 160px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: #111827;
+}
+
+.chat-video-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  margin-left: -11px;
+  border-radius: 999px;
+  border: 2px solid rgba(148, 163, 184, 0.35);
+  border-top-color: #f59e0b;
+  animation: chat-video-spin 0.9s linear infinite;
+}
+
+@keyframes chat-video-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .chat-sources-title {
   margin: 0 0 4px;
   color: var(--muted);

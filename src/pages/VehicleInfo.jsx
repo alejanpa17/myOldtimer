@@ -24,8 +24,12 @@ function VehicleInfo() {
       if (!mounted) {
         return;
       }
-      setSavedInfo(info);
-      setForm(info);
+      const normalizedInfo = {
+        ...DEFAULT_VEHICLE_INFO,
+        ...(info || {}),
+      };
+      setSavedInfo(normalizedInfo);
+      setForm(normalizedInfo);
       setVehicleImage(image);
     });
     return () => {
@@ -130,6 +134,17 @@ function VehicleInfo() {
             className="input"
             value={form.model}
             onChange={(event) => setField("model", event.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="generation">
+            Generation
+          </label>
+          <input
+            id="generation"
+            className="input"
+            value={form.generation}
+            onChange={(event) => setField("generation", event.target.value)}
           />
         </div>
         <div>

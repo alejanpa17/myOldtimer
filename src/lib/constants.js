@@ -2,6 +2,7 @@ export const DEFAULT_VEHICLE_INFO = {
   vin: "",
   brand: "",
   model: "",
+  generation: "",
   engine: "",
   fuelType: "",
   gearbox: "",
@@ -33,6 +34,10 @@ export const STORAGE_KEYS = {
   aiModel: "aiModel",
   aiTemperature: "aiTemperature",
   aiMaxOutputTokens: "aiMaxOutputTokens",
+  aiVideoThumbnailsEnabled: "aiVideoThumbnailsEnabled",
+  aiVideoThumbnailCache: "aiVideoThumbnailCache",
+  aiVideoRedirectCache: "aiVideoRedirectCacheV2",
+  aiDebug: "aiDebug",
 };
 
 export const MAINTENANCE_CATEGORIES = [
