@@ -1,4 +1,150 @@
 function ChatMessageList({ chatLog, isSending, threadEndRef }) {
+  const splitMarkdownBlocks = (text) => {
+    const lines = String(text || "").split(/\r?\n/);
+    const blocks = [];
+    let inCode = false;
+    let paragraphLines = [];
+    let codeLines = [];
+
+    const flushParagraph = () => {
+      if (paragraphLines.length === 0) {
+        return;
+      }
+      blocks.push({ type: "paragraph", text: paragraphLines.join("\n") });
+      paragraphLines = [];
+    };
+
+    for (const line of lines) {
+      if (line.trim().startsWith("```")) {
+        if (inCode) {
+          blocks.push({ type: "code", text: codeLines.join("\n") });
+          codeLines = [];
+          inCode = false;
+        } else {
+          flushParagraph();
+          inCode = true;
+        }
+        continue;
+      }
+
+      if (inCode) {
+        codeLines.push(line);
+        continue;
+      }
+
+      if (!line.trim()) {
+        flushParagraph();
+        continue;
+      }
+
+      paragraphLines.push(line);
+    }
+
+    if (inCode) {
+      blocks.push({ type: "code", text: codeLines.join("\n") });
+    } else {
+      flushParagraph();
+    }
+
+    return blocks;
+  };
+
+  const renderInlineMarkdown = (text, keyPrefix) => {
+    const segments = String(text || "").split(/(`[^`]+`)/g);
+    const rendered = [];
+
+    segments.forEach((segment, index) => {
+      if (segment.startsWith("`") && segment.endsWith("`") && segment.length >= 2) {
+        rendered.push(
+          <code className="chat-inline-code" key={`${keyPrefix}-code-${index}`}>
+            {segment.slice(1, -1)}
+          </code>
+        );
+        return;
+      }
+
+      const linkParts = segment.split(/(\[[^\]]+\]\([^)]+\))/g);
+      linkParts.forEach((linkPart, linkIndex) => {
+        const linkMatch = linkPart.match(/^\[([^\]]+)\]\([^)]+\)$/);
+        if (linkMatch) {
+          rendered.push(
+            <span className="chat-link-text" key={`${keyPrefix}-link-${index}-${linkIndex}`}>
+              {linkMatch[1]}
+            </span>
+          );
+          return;
+        }
+
+        const boldParts = linkPart.split(/(\*\*[^*]+\*\*)/g);
+        boldParts.forEach((boldPart, boldIndex) => {
+          if (boldPart.startsWith("**") && boldPart.endsWith("**") && boldPart.length >= 4) {
+            rendered.push(
+              <strong key={`${keyPrefix}-bold-${index}-${linkIndex}-${boldIndex}`}>
+                {boldPart.slice(2, -2)}
+              </strong>
+            );
+            return;
+          }
+
+          const italicParts = boldPart.split(/(\*[^*]+\*)/g);
+          italicParts.forEach((italicPart, italicIndex) => {
+            if (italicPart.startsWith("*") && italicPart.endsWith("*") && italicPart.length >= 2) {
+              rendered.push(
+                <em key={`${keyPrefix}-em-${index}-${linkIndex}-${boldIndex}-${italicIndex}`}>
+                  {italicPart.slice(1, -1)}
+                </em>
+              );
+              return;
+            }
+            if (italicPart) {
+              rendered.push(
+                <span key={`${keyPrefix}-text-${index}-${linkIndex}-${boldIndex}-${italicIndex}`}>
+                  {italicPart}
+                </span>
+              );
+            }
+          });
+        });
+      });
+    });
+
+    return rendered;
+  };
+
+  const renderMarkdownText = (text, keyPrefix) => {
+    const blocks = splitMarkdownBlocks(text);
+    if (blocks.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="chat-markdown">
+        {blocks.map((block, index) => {
+          const blockKey = `${keyPrefix}-block-${index}`;
+          if (block.type === "code") {
+            return (
+              <pre className="chat-code-block" key={blockKey}>
+                <code>{block.text}</code>
+              </pre>
+            );
+          }
+
+          const lines = block.text.split("\n");
+          return (
+            <p className="chat-paragraph" key={blockKey}>
+              {lines.map((line, lineIndex) => (
+                <span key={`${blockKey}-line-${lineIndex}`}>
+                  {renderInlineMarkdown(line, `${blockKey}-line-${lineIndex}`)}
+                  {lineIndex < lines.length - 1 && <br />}
+                </span>
+              ))}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
   const isVideoSourceAllowed = (video) => {
     const uri = `${video?.url || video?.sourceUrl || ""}`.toLowerCase();
     return (
@@ -50,7 +196,7 @@ function ChatMessageList({ chatLog, isSending, threadEndRef }) {
               message.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"
             }`}
           >
-            {message.text}
+            {renderMarkdownText(message.text, message.id)}
             {hasSourcesBlock && (
                 <div className="chat-sources">
                   <p className="chat-sources-title">Sources</p>

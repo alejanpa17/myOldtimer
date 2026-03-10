@@ -56,3 +56,33 @@ This repo uses `.github/workflows/deploy-pages.yml` and deploys on every push to
 $env:VITE_BASE_PATH="/myOldtimer/"
 npm run build
 ```
+
+## Optional: YouTube Resolver (Cloudflare Worker)
+
+To resolve Google Search grounding redirect URLs into YouTube video IDs, set:
+
+```powershell
+$env:VITE_VIDEO_RESOLVER_URL="https://myoldtimer-video-resolver.alejandro170999.workers.dev"
+```
+
+The worker should accept `POST` JSON:
+
+```json
+{"url":"<vertexaisearch redirect url>"}
+```
+
+And return JSON with at least:
+
+```json
+{"videoId":"<id>","title":"<video title>","url":"<youtube url>"}
+```
+
+Batch support is also expected:
+
+```json
+{"urls":["<redirect url 1>","<redirect url 2>"]}
+```
+
+```json
+{"results":[{"url":"<redirect url>","resolvedUrl":"<youtube url>","videoId":"<id>","title":"<title>"}]}
+```

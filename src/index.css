@@ -761,6 +761,45 @@ button:focus-visible,
   word-break: break-word;
 }
 
+.chat-markdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  white-space: normal;
+}
+
+.chat-paragraph {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.chat-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.85em;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.chat-code-block {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #0b1220;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  overflow-x: auto;
+}
+
+.chat-link-text {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
 .chat-bubble-ai {
   justify-self: start;
   background: var(--surface-2);
