@@ -224,6 +224,43 @@ export function extractGroundedSources(payload) {
   return sources;
 }
 
+export function extractUrlContextSources(payload) {
+  const candidate = payload?.candidates?.[0];
+  const metadata =
+    candidate?.urlContextMetadata || candidate?.url_context_metadata || null;
+  const urlMetadata = metadata?.urlMetadata || metadata?.url_metadata;
+  if (!Array.isArray(urlMetadata)) {
+    return [];
+  }
+
+  const dedupe = new Set();
+  const sources = urlMetadata
+    .map((entry) => {
+      const uri = entry?.retrievedUrl || entry?.retrieved_url || entry?.url;
+      if (!uri) {
+        return null;
+      }
+      const status =
+        entry?.urlRetrievalStatus || entry?.url_retrieval_status || "";
+      return {
+        uri: String(uri),
+        title: status ? `${uri} (${status})` : String(uri),
+      };
+    })
+    .filter((source) => {
+      if (!source || dedupe.has(source.uri)) {
+        return false;
+      }
+      dedupe.add(source.uri);
+      return true;
+    });
+
+  aiDebugLog("response_processing", "extracted_url_context_sources", {
+    count: sources.length,
+  });
+  return sources;
+}
+
 function parseYouTubeVideoId(uri) {
   try {
     const parsed = new URL(uri);

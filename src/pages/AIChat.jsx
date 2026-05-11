@@ -7,6 +7,7 @@ import EditToggleButton from "../components/EditToggleButton";
 import AISettingsFields from "../components/ai/AISettingsFields";
 import VehicleProfileUpdateFields from "../components/ai/VehicleProfileUpdateFields";
 import ChatMessageList from "../components/ai/ChatMessageList";
+import ManualLibraryModal from "../components/ai/ManualLibraryModal";
 import {
   AI_MODELS,
   buildSystemPrompt,
@@ -23,6 +24,7 @@ import {
   extractGeminiText,
   extractGroundedVideos,
   extractGroundedSources,
+  extractUrlContextSources,
   formatFieldLabel,
   sanitizeChatLog,
 } from "../lib/ai/responseProcessing";
@@ -41,6 +43,59 @@ import {
   normalizeVideoRedirectCache,
 } from "../lib/ai/videos";
 import { aiDebugError, aiDebugLog, setAiDebugEnabled } from "../lib/ai/debug";
+
+function normalizeManualUrls(rawManualUrls) {
+  if (!Array.isArray(rawManualUrls)) {
+    return [];
+  }
+
+  const seen = new Set();
+  return rawManualUrls
+    .map((manual) => {
+      const url = typeof manual?.url === "string" ? manual.url.trim() : "";
+      if (!url || seen.has(url)) {
+        return null;
+      }
+      seen.add(url);
+      return {
+        id: typeof manual?.id === "string" ? manual.id : createId("manual-url"),
+        title:
+          typeof manual?.title === "string" && manual.title.trim()
+            ? manual.title.trim()
+            : "Workshop manual",
+        url,
+        createdAt: manual?.createdAt || new Date().toISOString(),
+      };
+    })
+    .filter(Boolean);
+}
+
+function getUrlTitle(url) {
+  try {
+    const parsed = new URL(url);
+    const filename = parsed.pathname.split("/").filter(Boolean).pop() || parsed.hostname;
+    return decodeURIComponent(filename).replace(/\.pdf$/i, "").replace(/[-_]+/g, " ");
+  } catch {
+    return "Workshop manual";
+  }
+}
+
+function normalizePublicUrl(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
 
 function normalizeOptionalBoolean(value) {
   if (typeof value === "boolean") {
@@ -88,6 +143,10 @@ function AIChat() {
   const [isSending, setIsSending] = useState(false);
   const [pendingVehicleUpdate, setPendingVehicleUpdate] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showManualLibraryModal, setShowManualLibraryModal] = useState(false);
+  const [manualUrls, setManualUrls] = useState([]);
+  const [manualUrlInput, setManualUrlInput] = useState("");
+  const [manualLibraryStatus, setManualLibraryStatus] = useState("");
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [videoThumbnailCache, setVideoThumbnailCache] = useState({});
   const [videoRedirectCache, setVideoRedirectCache] = useState({});
@@ -138,6 +197,7 @@ function AIChat() {
       loadValueWithFallback(STORAGE_KEYS.aiVideoThumbnailCache, {}),
       loadValueWithFallback(STORAGE_KEYS.aiVideoRedirectCache, {}),
       loadValueWithFallback(STORAGE_KEYS.aiDebug, false),
+      loadValueWithFallback(STORAGE_KEYS.aiManualUrls, []),
     ])
       .then(
         ([
@@ -151,6 +211,7 @@ function AIChat() {
           storedVideoThumbnailCache,
           storedVideoRedirectCache,
           storedAiDebug,
+          storedManualUrls,
         ]) => {
           if (!mounted) {
             return;
@@ -161,6 +222,7 @@ function AIChat() {
           const normalizedMaxOutputTokens = normalizeMaxOutputTokens(storedMaxOutputTokens);
           const normalizedDebugEnabled = normalizeDebugFlag(storedAiDebug);
           const normalizedChat = sanitizeChatLog(storedChatLog);
+          const normalizedManualUrls = normalizeManualUrls(storedManualUrls);
           const normalizedInfo = {
             ...DEFAULT_VEHICLE_INFO,
             ...(info || {}),
@@ -185,6 +247,7 @@ function AIChat() {
           setChatLog(nextChat);
           setVideoThumbnailCache(normalizeThumbnailCache(storedVideoThumbnailCache));
           setVideoRedirectCache(normalizeVideoRedirectCache(storedVideoRedirectCache));
+          setManualUrls(normalizedManualUrls);
           const enabled = Boolean(normalizeOptionalBoolean(storedVideoThumbnailsEnabled));
           setPopupThumbnailsEnabledInput(enabled);
           setSavedPopupThumbnailsEnabled(enabled);
@@ -196,6 +259,7 @@ function AIChat() {
             temperature: normalizedTemperature,
             maxOutputTokens: normalizedMaxOutputTokens,
             debugEnabled: normalizedDebugEnabled,
+            manualUrls: normalizedManualUrls.length,
           });
 
           if (normalizedChat.length === 0) {
@@ -215,6 +279,9 @@ function AIChat() {
           }
           if (normalizedDebugEnabled !== storedAiDebug) {
             saveValueWithFallback(STORAGE_KEYS.aiDebug, normalizedDebugEnabled);
+          }
+          if (JSON.stringify(normalizedManualUrls) !== JSON.stringify(storedManualUrls)) {
+            saveValueWithFallback(STORAGE_KEYS.aiManualUrls, normalizedManualUrls);
           }
         }
       )
@@ -321,9 +388,51 @@ function AIChat() {
       setDebugEnabledInput(savedDebugEnabled);
       setPopupThumbnailsEnabledInput(savedPopupThumbnailsEnabled);
       setSettingsStatus("");
+      setShowManualLibraryModal(false);
       aiDebugLog("settings", "opened");
       return true;
     });
+  };
+
+  const toggleManualLibraryModal = () => {
+    setShowManualLibraryModal((current) => !current);
+    setShowSettingsModal(false);
+    setManualLibraryStatus("");
+  };
+
+  const addManualUrl = async () => {
+    const url = normalizePublicUrl(manualUrlInput);
+    if (!url) {
+      setManualLibraryStatus("Enter a public http or https URL.");
+      return;
+    }
+
+    const nextManualUrls = normalizeManualUrls([
+      ...manualUrls.filter((manual) => manual.url !== url),
+      {
+        id: createId("manual-url"),
+        title: getUrlTitle(url),
+        url,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    const saved = await saveValueWithFallback(STORAGE_KEYS.aiManualUrls, nextManualUrls);
+    if (!saved) {
+      setManualLibraryStatus("Could not save manual URL on this device.");
+      return;
+    }
+
+    setManualUrls(nextManualUrls);
+    setManualUrlInput("");
+    setManualLibraryStatus("Manual URL saved.");
+    aiDebugLog("manuals", "url_added", { url });
+  };
+
+  const deleteManual = async (manualId) => {
+    const nextManualUrls = manualUrls.filter((manual) => manual.id !== manualId);
+    setManualUrls(nextManualUrls);
+    await saveValueWithFallback(STORAGE_KEYS.aiManualUrls, nextManualUrls);
+    setManualLibraryStatus("Manual URL deleted.");
   };
 
   const applyPendingVehicleUpdate = async () => {
@@ -445,11 +554,28 @@ function AIChat() {
       vehicle: vehicleContext,
       hasVehicleProfile: Object.values(vehicleContext).some(Boolean),
     };
+    const activeManualUrls = manualUrls.map((manual) => manual.url).filter(Boolean);
+    const manualUrlContextText =
+      activeManualUrls.length > 0
+        ? [
+            "Use these public workshop manual PDF URLs as sources with URL Context.",
+            "If Gemini cannot retrieve them or they do not contain the answer, say so instead of guessing.",
+            ...activeManualUrls.map((url, index) => `${index + 1}. ${url}`),
+          ].join("\n")
+        : "";
     const contents = [
       {
         role: "user",
         parts: [{ text: `Vehicle context JSON: ${JSON.stringify(vehicleContextPayload)}` }],
       },
+      ...(manualUrlContextText
+        ? [
+            {
+              role: "user",
+              parts: [{ text: manualUrlContextText }],
+            },
+          ]
+        : []),
       ...conversation.map((message) => ({
         role: message.role === "ai" ? "model" : "user",
         parts: [{ text: message.text }],
@@ -462,6 +588,7 @@ function AIChat() {
         model: savedModel,
         withGoogleSearch: shouldGroundWithSearch,
         conversationMessages: conversation.length,
+        manualUrls: activeManualUrls.length,
       });
       const requestBody = {
         systemInstruction: {
@@ -474,8 +601,15 @@ function AIChat() {
           stopSequences: ["```"],
         },
       };
+      const tools = [];
+      if (activeManualUrls.length > 0) {
+        tools.push({ url_context: {} });
+      }
       if (shouldGroundWithSearch) {
-        requestBody.tools = [{ google_search: {} }];
+        tools.push({ google_search: {} });
+      }
+      if (tools.length > 0) {
+        requestBody.tools = tools;
       }
       aiDebugLog("request", "api_request_payload", requestBody);
 
@@ -510,16 +644,18 @@ function AIChat() {
       }
 
       const groundedSources = extractGroundedSources(payload);
+      const urlContextSources = extractUrlContextSources(payload);
       const groundedVideos = extractGroundedVideos(payload, rawText);
       const { assistantMessage, proposedUpdates } = extractAssistantResponse(rawText);
       aiDebugLog("response", "parsed", {
         textLength: rawText.length,
         sources: groundedSources.length,
+        urlContextSources: urlContextSources.length,
         groundedVideos: groundedVideos.length,
         proposedUpdateFields: Object.keys(proposedUpdates),
       });
       const aiMessageId = createId("ai");
-      const sourcesForMessage = shouldGroundWithSearch ? groundedSources : [];
+      const sourcesForMessage = [...urlContextSources, ...(shouldGroundWithSearch ? groundedSources : [])];
       let videosForMessage = [];
       let preparedVideoPayload = null;
       if (shouldGroundWithSearch && groundedVideos.length > 0) {
@@ -707,6 +843,16 @@ function AIChat() {
         className="fab fab-left ai-settings-fab"
       />
 
+      <button
+        type="button"
+        className={`fab ai-manuals-fab ${showManualLibraryModal ? "icon-toggle-active" : ""}`}
+        onClick={toggleManualLibraryModal}
+        aria-label="Manual Library"
+        title="Manual Library"
+      >
+        PDF
+      </button>
+
       <SaveCancelModal
         open={showSettingsModal}
         title="AI Settings"
@@ -735,6 +881,20 @@ function AIChat() {
           settingsStatus={settingsStatus}
         />
       </SaveCancelModal>
+
+      <ManualLibraryModal
+        open={showManualLibraryModal}
+        manualUrls={manualUrls}
+        urlInput={manualUrlInput}
+        status={manualLibraryStatus}
+        onUrlInputChange={(value) => {
+          setManualUrlInput(value);
+          setManualLibraryStatus("");
+        }}
+        onAdd={addManualUrl}
+        onDelete={deleteManual}
+        onClose={() => setShowManualLibraryModal(false)}
+      />
 
       <SaveCancelModal
         open={showUpdateModal}

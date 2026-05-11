@@ -5,11 +5,14 @@ import { DEFAULT_VEHICLE_INFO, STORAGE_KEYS } from "../lib/constants";
 import VehicleImageModal from "../components/VehicleImageModal";
 import ActionFeedbackModal from "../components/ActionFeedbackModal";
 import VehicleImageEmptyState from "../components/VehicleImageEmptyState";
+import { parseNonNegativeMileage } from "../lib/mileage";
 
 function VehicleInfo() {
   const navigate = useNavigate();
   const [savedInfo, setSavedInfo] = useState(DEFAULT_VEHICLE_INFO);
   const [form, setForm] = useState(DEFAULT_VEHICLE_INFO);
+  const [savedMileageInput, setSavedMileageInput] = useState("");
+  const [mileageInput, setMileageInput] = useState("");
   const [vehicleImage, setVehicleImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [status, setStatus] = useState("");
@@ -20,7 +23,8 @@ function VehicleInfo() {
     Promise.all([
       dbGet(STORAGE_KEYS.vehicleInfo, DEFAULT_VEHICLE_INFO),
       dbGet(STORAGE_KEYS.vehicleImage, null),
-    ]).then(([info, image]) => {
+      dbGet(STORAGE_KEYS.maintenanceCurrentMileage, ""),
+    ]).then(([info, image, storedMileage]) => {
       if (!mounted) {
         return;
       }
@@ -30,6 +34,8 @@ function VehicleInfo() {
       };
       setSavedInfo(normalizedInfo);
       setForm(normalizedInfo);
+      setSavedMileageInput(storedMileage === "" ? "" : String(storedMileage));
+      setMileageInput(storedMileage === "" ? "" : String(storedMileage));
       setVehicleImage(image);
     });
     return () => {
@@ -45,14 +51,26 @@ function VehicleInfo() {
   };
 
   const save = async () => {
-    await dbSet(STORAGE_KEYS.vehicleInfo, form);
+    const mileage = parseNonNegativeMileage(mileageInput);
+    if (mileageInput.trim() && mileage === null) {
+      setStatus("Current mileage must be a valid non-negative number.");
+      return;
+    }
+
+    await Promise.all([
+      dbSet(STORAGE_KEYS.vehicleInfo, form),
+      dbSet(STORAGE_KEYS.maintenanceCurrentMileage, mileage === null ? "" : mileage),
+    ]);
     setSavedInfo(form);
+    setSavedMileageInput(mileage === null ? "" : String(mileage));
+    setMileageInput(mileage === null ? "" : String(mileage));
     setStatus("");
     setFeedbackMessage("Vehicle info saved locally.");
   };
 
   const cancel = () => {
     setForm(savedInfo);
+    setMileageInput(savedMileageInput);
     setStatus("");
     setFeedbackMessage("Changes reverted.");
   };
@@ -112,6 +130,22 @@ function VehicleInfo() {
             className="input"
             value={form.vin}
             onChange={(event) => setField("vin", event.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="currentMileage">
+            Current mileage
+          </label>
+          <input
+            id="currentMileage"
+            className="input"
+            inputMode="numeric"
+            placeholder="Enter current mileage"
+            value={mileageInput}
+            onChange={(event) => {
+              setMileageInput(event.target.value);
+              setStatus("");
+            }}
           />
         </div>
         <div>

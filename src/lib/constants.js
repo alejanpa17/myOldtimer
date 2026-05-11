@@ -38,6 +38,7 @@ export const STORAGE_KEYS = {
   aiVideoThumbnailCache: "aiVideoThumbnailCache",
   aiVideoRedirectCache: "aiVideoRedirectCacheV2",
   aiDebug: "aiDebug",
+  aiManualUrls: "aiManualUrls",
 };
 
 export const MAINTENANCE_CATEGORIES = [
