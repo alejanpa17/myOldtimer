@@ -1,53 +1,91 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { dbDelete, dbGet, dbSet } from "../lib/db";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { dbSet } from "../lib/db";
 import { DEFAULT_VEHICLE_INFO, STORAGE_KEYS } from "../lib/constants";
 import VehicleImageModal from "../components/VehicleImageModal";
 import ActionFeedbackModal from "../components/ActionFeedbackModal";
 import VehicleImageEmptyState from "../components/VehicleImageEmptyState";
 import { parseNonNegativeMileage } from "../lib/mileage";
+import {
+  createVehicleRecord,
+  getSelectedVehicle,
+  loadGarage,
+  normalizeVehicleInfo,
+  saveVehicles,
+  syncCurrentVehicle,
+} from "../lib/garage";
+
+const REQUIRED_IDENTITY_FIELDS = ["vin", "brand", "model"];
+
+function hasRequiredVehicleIdentity(info) {
+  return REQUIRED_IDENTITY_FIELDS.some((field) => info[field]?.trim());
+}
 
 function VehicleInfo() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isNewVehicle = searchParams.get("new") === "1";
   const [savedInfo, setSavedInfo] = useState(DEFAULT_VEHICLE_INFO);
   const [form, setForm] = useState(DEFAULT_VEHICLE_INFO);
   const [savedMileageInput, setSavedMileageInput] = useState("");
   const [mileageInput, setMileageInput] = useState("");
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [vehicleImage, setVehicleImage] = useState(null);
+  const [savedVehicleImage, setSavedVehicleImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [status, setStatus] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [showIdentityErrors, setShowIdentityErrors] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([
-      dbGet(STORAGE_KEYS.vehicleInfo, DEFAULT_VEHICLE_INFO),
-      dbGet(STORAGE_KEYS.vehicleImage, null),
-      dbGet(STORAGE_KEYS.maintenanceCurrentMileage, ""),
-    ]).then(([info, image, storedMileage]) => {
+    loadGarage().then((garage) => {
       if (!mounted) {
         return;
       }
-      const normalizedInfo = {
-        ...DEFAULT_VEHICLE_INFO,
-        ...(info || {}),
-      };
+
+      setVehicles(garage.vehicles);
+      setSelectedVehicleId(garage.selectedVehicleId);
+
+      if (isNewVehicle) {
+        setSavedInfo(DEFAULT_VEHICLE_INFO);
+        setForm(DEFAULT_VEHICLE_INFO);
+        setSavedMileageInput("");
+        setMileageInput("");
+        setVehicleImage(null);
+        setSavedVehicleImage(null);
+        return;
+      }
+
+      const selectedVehicle = garage.selectedVehicle;
+      const normalizedInfo = normalizeVehicleInfo(selectedVehicle?.info);
+      const mileage =
+        selectedVehicle?.mileage === "" ? "" : String(selectedVehicle?.mileage ?? "");
       setSavedInfo(normalizedInfo);
       setForm(normalizedInfo);
-      setSavedMileageInput(storedMileage === "" ? "" : String(storedMileage));
-      setMileageInput(storedMileage === "" ? "" : String(storedMileage));
-      setVehicleImage(image);
+      setSavedMileageInput(mileage);
+      setMileageInput(mileage);
+      setVehicleImage(selectedVehicle?.image || null);
+      setSavedVehicleImage(selectedVehicle?.image || null);
     });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isNewVehicle]);
 
   const setField = (key, value) => {
-    setForm((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setForm((current) => {
+      const nextForm = {
+        ...current,
+        [key]: value,
+      };
+      if (REQUIRED_IDENTITY_FIELDS.includes(key) && hasRequiredVehicleIdentity(nextForm)) {
+        setShowIdentityErrors(false);
+        setStatus("");
+      }
+      return nextForm;
+    });
   };
 
   const save = async () => {
@@ -57,34 +95,84 @@ function VehicleInfo() {
       return;
     }
 
-    await Promise.all([
-      dbSet(STORAGE_KEYS.vehicleInfo, form),
-      dbSet(STORAGE_KEYS.maintenanceCurrentMileage, mileage === null ? "" : mileage),
-    ]);
-    setSavedInfo(form);
+    const currentVehicle = getSelectedVehicle(vehicles, selectedVehicleId);
+    if (!hasRequiredVehicleIdentity(form)) {
+      setShowIdentityErrors(true);
+      setStatus("Enter a VIN, brand, or model before saving.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const nextMileage = mileage === null ? "" : mileage;
+    let nextVehicle = null;
+    let nextVehicles = [];
+
+    if (isNewVehicle) {
+      nextVehicle = createVehicleRecord({
+        info: form,
+        image: vehicleImage,
+        mileage: nextMileage,
+        createdAt: now,
+        updatedAt: now,
+      });
+      nextVehicles = [...vehicles, nextVehicle];
+    } else {
+      nextVehicle = {
+        ...(currentVehicle ||
+          createVehicleRecord({ id: selectedVehicleId || undefined })),
+        info: normalizeVehicleInfo(form),
+        image: vehicleImage,
+        mileage: nextMileage,
+        updatedAt: now,
+      };
+      nextVehicles = vehicles.map((vehicle) =>
+        vehicle.id === nextVehicle.id ? nextVehicle : vehicle
+      );
+      if (!nextVehicles.some((vehicle) => vehicle.id === nextVehicle.id)) {
+        nextVehicles = [...nextVehicles, nextVehicle];
+      }
+    }
+
+    await saveVehicles(nextVehicles, nextVehicle.id);
+    await syncCurrentVehicle(nextVehicle);
+    setVehicles(nextVehicles);
+    setSelectedVehicleId(nextVehicle.id);
+    setSavedInfo(normalizeVehicleInfo(form));
+    setSavedVehicleImage(vehicleImage);
     setSavedMileageInput(mileage === null ? "" : String(mileage));
     setMileageInput(mileage === null ? "" : String(mileage));
+    setShowIdentityErrors(false);
     setStatus("");
-    setFeedbackMessage("Vehicle info saved locally.");
+    setFeedbackMessage(isNewVehicle ? "Vehicle added and selected." : "Vehicle info saved locally.");
   };
 
   const cancel = () => {
+    if (isNewVehicle) {
+      navigate("/");
+      return;
+    }
     setForm(savedInfo);
     setMileageInput(savedMileageInput);
+    setVehicleImage(savedVehicleImage);
+    setShowIdentityErrors(false);
     setStatus("");
     setFeedbackMessage("Changes reverted.");
   };
 
   const saveImage = async (imageDataUrl) => {
-    await dbSet(STORAGE_KEYS.vehicleImage, imageDataUrl);
     setVehicleImage(imageDataUrl);
     setStatus("Vehicle photo updated.");
+    if (!isNewVehicle) {
+      await dbSet(STORAGE_KEYS.vehicleImage, imageDataUrl);
+    }
   };
 
   const removeImage = async () => {
-    await dbDelete(STORAGE_KEYS.vehicleImage);
     setVehicleImage(null);
     setStatus("Vehicle photo removed.");
+    if (!isNewVehicle) {
+      await dbSet(STORAGE_KEYS.vehicleImage, null);
+    }
   };
 
   const closeFeedback = () => {
@@ -98,7 +186,7 @@ function VehicleInfo() {
 
   return (
     <main className="page">
-      <h2 className="page-title">Vehicle Info</h2>
+      <h2 className="page-title">{isNewVehicle ? "Add Vehicle" : "Vehicle Info"}</h2>
       <section className="card" style={{ marginBottom: 12, textAlign: "center" }}>
         {vehicleImage ? (
           <img
@@ -127,7 +215,7 @@ function VehicleInfo() {
           </label>
           <input
             id="vin"
-            className="input"
+            className={`input ${showIdentityErrors ? "input-error" : ""}`}
             value={form.vin}
             onChange={(event) => setField("vin", event.target.value)}
           />
@@ -154,7 +242,7 @@ function VehicleInfo() {
           </label>
           <input
             id="brand"
-            className="input"
+            className={`input ${showIdentityErrors ? "input-error" : ""}`}
             value={form.brand}
             onChange={(event) => setField("brand", event.target.value)}
           />
@@ -165,7 +253,7 @@ function VehicleInfo() {
           </label>
           <input
             id="model"
-            className="input"
+            className={`input ${showIdentityErrors ? "input-error" : ""}`}
             value={form.model}
             onChange={(event) => setField("model", event.target.value)}
           />

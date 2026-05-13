@@ -7,6 +7,7 @@ import {
   useNavigationType,
 } from "react-router-dom";
 import Home from "./pages/Home";
+import Garage from "./pages/Garage";
 import VehicleInfo from "./pages/VehicleInfo";
 import Diagnostics from "./pages/Diagnostics";
 import Maintenance from "./pages/Maintenance";
@@ -46,6 +47,7 @@ function AppRoutes({ routeLocation }) {
   return (
     <Routes location={routeLocation}>
       <Route path="/" element={<Home />} />
+      <Route path="/garage" element={<Garage />} />
       <Route path="/vehicle" element={<VehicleInfo />} />
       <Route path="/diagnosis" element={<Diagnostics />} />
       <Route path="/diagnostics" element={<Diagnostics />} />
@@ -74,7 +76,7 @@ function NavIcon({ name }) {
     case "service":
       return (
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M19.5 13.4c.1-.5.1-.9.1-1.4s0-.9-.1-1.4l2-1.5-1.9-3.3-2.4 1a7.4 7.4 0 0 0-2.4-1.4L14.5 3h-5l-.4 2.4c-.9.3-1.7.8-2.4 1.4l-2.3-1-2 3.3 2 1.5c-.1.5-.1.9-.1 1.4s0 .9.1 1.4l-2 1.5 2 3.3 2.3-1c.7.6 1.5 1.1 2.4 1.4l.4 2.4h5l.4-2.4c.9-.3 1.7-.8 2.4-1.4l2.4 1 1.9-3.3-2.1-1.5ZM12 15.4a3.4 3.4 0 1 1 0-6.8 3.4 3.4 0 0 1 0 6.8Z" />
+          <path d="M21.1 6.1a5.5 5.5 0 0 1-7.2 6.9l-7.6 7.6a2.1 2.1 0 0 1-3-3l7.6-7.6A5.5 5.5 0 0 1 17.8 2.8l-3.2 3.2 3.4 3.4 3.1-3.3ZM4.7 19.2a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6Z" />
         </svg>
       );
     case "scan":

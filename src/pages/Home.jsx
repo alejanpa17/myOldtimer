@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { dbDelete, dbGet, dbSet } from "../lib/db";
+import { dbGet, dbSet } from "../lib/db";
 import { DEFAULT_VEHICLE_INFO, STORAGE_KEYS } from "../lib/constants";
 import VehicleImageModal from "../components/VehicleImageModal";
 import VehicleImageEmptyState from "../components/VehicleImageEmptyState";
 import { parseNonNegativeMileage } from "../lib/mileage";
+import {
+  getSelectedVehicle,
+  getVehicleLabel,
+  loadGarage,
+  saveVehicles,
+} from "../lib/garage";
 import {
   MAINTENANCE_STATUS,
   calculateCategoryState,
@@ -97,6 +103,8 @@ function formatNumber(value, decimals = 0) {
 
 function Home() {
   const navigate = useNavigate();
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [vehicleImage, setVehicleImage] = useState(null);
   const [vehicleInfo, setVehicleInfo] = useState(DEFAULT_VEHICLE_INFO);
   const [maintenanceCategories, setMaintenanceCategories] = useState([]);
@@ -111,16 +119,12 @@ function Home() {
   useEffect(() => {
     let mounted = true;
     Promise.all([
-      dbGet(STORAGE_KEYS.vehicleImage, null),
-      dbGet(STORAGE_KEYS.vehicleInfo, DEFAULT_VEHICLE_INFO),
-      dbGet(STORAGE_KEYS.maintenanceCurrentMileage, ""),
+      loadGarage(),
       dbGet(STORAGE_KEYS.maintenanceCategories, []),
       dbGet(STORAGE_KEYS.maintenanceHistory, []),
       dbGet(STORAGE_KEYS.checklistData, DEFAULT_CHECKLIST),
     ]).then(([
-      storedImage,
-      storedInfo,
-      storedMileage,
+      garage,
       storedCategories,
       storedMaintenanceEntries,
       storedChecklist,
@@ -129,12 +133,13 @@ function Home() {
         return;
       }
       const normalizedChecklist = normalizeChecklistData(storedChecklist);
-      setVehicleImage(storedImage);
-      setVehicleInfo({
-        ...DEFAULT_VEHICLE_INFO,
-        ...(storedInfo || {}),
-      });
-      setCurrentMileageInput(storedMileage === "" ? "" : String(storedMileage));
+      setVehicles(garage.vehicles);
+      setSelectedVehicleId(garage.selectedVehicleId);
+      setVehicleImage(garage.selectedVehicle?.image || null);
+      setVehicleInfo(garage.selectedVehicle?.info || DEFAULT_VEHICLE_INFO);
+      setCurrentMileageInput(
+        garage.selectedVehicle?.mileage === "" ? "" : String(garage.selectedVehicle?.mileage ?? "")
+      );
       setMaintenanceCategories(normalizeCategories(storedCategories));
       setMaintenanceEntries(normalizeMaintenanceEntries(storedMaintenanceEntries));
       setChecklistSummary({
@@ -147,14 +152,15 @@ function Home() {
     };
   }, []);
 
-  const vehicleLabel = useMemo(() => {
-    const brand = vehicleInfo.brand?.trim();
-    const model = vehicleInfo.model?.trim();
-    if (brand || model) {
-      return `${brand || "Vehicle"} ${model || ""}`.trim();
-    }
-    return "Vehicle";
-  }, [vehicleInfo.brand, vehicleInfo.model]);
+  const vehicleLabel = useMemo(
+    () => getVehicleLabel({ info: vehicleInfo }),
+    [vehicleInfo]
+  );
+
+  const selectedVehicle = useMemo(
+    () => getSelectedVehicle(vehicles, selectedVehicleId),
+    [selectedVehicleId, vehicles]
+  );
 
   const currentMileage = parseNonNegativeMileage(currentMileageInput);
 
@@ -193,11 +199,37 @@ function Home() {
   const saveImage = async (imageDataUrl) => {
     await dbSet(STORAGE_KEYS.vehicleImage, imageDataUrl);
     setVehicleImage(imageDataUrl);
+    if (selectedVehicle) {
+      const now = new Date().toISOString();
+      const nextVehicle = {
+        ...selectedVehicle,
+        image: imageDataUrl,
+        updatedAt: now,
+      };
+      const nextVehicles = vehicles.map((vehicle) =>
+        vehicle.id === nextVehicle.id ? nextVehicle : vehicle
+      );
+      setVehicles(nextVehicles);
+      await saveVehicles(nextVehicles, nextVehicle.id);
+    }
   };
 
   const removeImage = async () => {
-    await dbDelete(STORAGE_KEYS.vehicleImage);
+    await dbSet(STORAGE_KEYS.vehicleImage, null);
     setVehicleImage(null);
+    if (selectedVehicle) {
+      const now = new Date().toISOString();
+      const nextVehicle = {
+        ...selectedVehicle,
+        image: null,
+        updatedAt: now,
+      };
+      const nextVehicles = vehicles.map((vehicle) =>
+        vehicle.id === nextVehicle.id ? nextVehicle : vehicle
+      );
+      setVehicles(nextVehicles);
+      await saveVehicles(nextVehicles, nextVehicle.id);
+    }
   };
 
   return (
@@ -210,9 +242,9 @@ function Home() {
               <button
                 type="button"
                 className="vehicle-profile-access"
-                onClick={() => navigate("/vehicle")}
-                aria-label="Open vehicle profile"
-                title="Vehicle profile"
+                onClick={() => navigate("/garage")}
+                aria-label="Open garage menu"
+                title="Garage menu"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path

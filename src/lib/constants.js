@@ -18,6 +18,8 @@ export const DEFAULT_VEHICLE_INFO = {
 export const STORAGE_KEYS = {
   vehicleInfo: "vehicleInfo",
   vehicleImage: "vehicleImage",
+  vehicles: "vehicles",
+  selectedVehicleId: "selectedVehicleId",
   diagnosticsConnected: "diagnosticsConnected",
   currentFaultCodes: "currentFaultCodes",
   faultHistory: "faultHistory",

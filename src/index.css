@@ -115,6 +115,7 @@ a {
 }
 
 .garage-hero-copy {
+  position: relative;
   display: grid;
   align-content: end;
   gap: 10px;
@@ -160,6 +161,97 @@ a {
 .vehicle-profile-access svg {
   width: 21px;
   height: 21px;
+}
+
+.garage-page-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.garage-vehicle-card {
+  min-height: 118px;
+  display: grid;
+  grid-template-rows: 72px auto;
+  gap: 8px;
+  padding: 8px;
+  text-align: center;
+  background: var(--surface);
+}
+
+.garage-vehicle-current {
+  border-color: var(--accent-strong);
+  box-shadow:
+    0 0 0 1px rgba(242, 184, 75, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.garage-vehicle-thumb,
+.garage-car-placeholder,
+.garage-add-icon {
+  width: 100%;
+  height: 72px;
+  border-radius: 8px;
+}
+
+.garage-vehicle-thumb {
+  display: block;
+  object-fit: cover;
+  background: #111;
+}
+
+.garage-car-placeholder {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: #050505;
+  background: #f2efe6;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.garage-car-placeholder svg {
+  width: 74%;
+  height: 74%;
+  fill: currentColor;
+}
+
+.garage-vehicle-name {
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.garage-add-card {
+  border-style: dashed;
+}
+
+.garage-page-card {
+  min-height: 136px;
+}
+
+.garage-add-icon {
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    rgba(255, 255, 255, 0.035);
+  border: 1px dashed var(--border-strong);
+}
+
+.garage-plus-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #050505;
+  color: #f6f4ec;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .home-title {
@@ -385,6 +477,12 @@ button:disabled,
   border-radius: 8px;
   padding: 11px 12px;
   font-size: 0.98rem;
+}
+
+.input-error {
+  border-color: var(--danger);
+  background: rgba(239, 106, 95, 0.12);
+  box-shadow: 0 0 0 1px rgba(239, 106, 95, 0.28);
 }
 
 button,
