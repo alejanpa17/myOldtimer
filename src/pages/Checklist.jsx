@@ -34,8 +34,11 @@ function mapTaskToEditor(task) {
 function Checklist() {
   const pressTimer = useRef(null);
   const subtaskPressTimer = useRef(null);
+  const tabAnimationTimer = useRef(null);
   const [checklist, setChecklist] = useState(DEFAULT_CHECKLIST);
   const [activeTab, setActiveTab] = useState("todo");
+  const [leavingTab, setLeavingTab] = useState(null);
+  const [tabDirection, setTabDirection] = useState("forward");
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -65,6 +68,14 @@ function Checklist() {
     });
     return () => {
       mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (tabAnimationTimer.current) {
+        clearTimeout(tabAnimationTimer.current);
+      }
     };
   }, []);
 
@@ -324,193 +335,229 @@ function Checklist() {
     });
   }, [checklist.done]);
 
+  const changeTab = (nextTab) => {
+    if (nextTab === activeTab) {
+      return;
+    }
+    if (tabAnimationTimer.current) {
+      clearTimeout(tabAnimationTimer.current);
+    }
+    setLeavingTab(activeTab);
+    setTabDirection(nextTab === "done" ? "forward" : "back");
+    setActiveTab(nextTab);
+    setSelectMode(false);
+    setSelectedIds([]);
+    tabAnimationTimer.current = setTimeout(() => {
+      setLeavingTab(null);
+      tabAnimationTimer.current = null;
+    }, 280);
+  };
+
+  const renderTodoPanel = () => (
+    <>
+      {checklist.todo.length === 0 && (
+        <article className="card">
+          <p className="muted">No tasks in To-Do.</p>
+        </article>
+      )}
+      {checklist.todo.map((task) => {
+        const doneCount = task.subtasks.filter((subtask) => subtask.isDone).length;
+        return (
+          <div
+            key={task.id}
+            className={`checklist-entry-row ${
+              selectMode ? "checklist-entry-row-manage" : ""
+            }`}
+          >
+            <article
+              className="card checklist-entry-card"
+              onPointerDown={() => handleLongPressStart(task)}
+              onPointerUp={clearTimer}
+              onPointerLeave={clearTimer}
+            >
+              <div className="checklist-task-header">
+                <h3 className="item-title">{task.taskName}</h3>
+              </div>
+              <p className="item-row">
+                Progress: {doneCount}/{task.subtasks.length} subtasks done
+              </p>
+              {task.subtasks.map((subtask) => (
+                <div
+                  key={subtask.id}
+                  className="card"
+                  style={{ marginTop: 8 }}
+                  onPointerDown={(event) =>
+                    handleSubtaskLongPressStart(event, task.id, subtask)
+                  }
+                  onPointerUp={clearSubtaskTimer}
+                  onPointerCancel={clearSubtaskTimer}
+                  onContextMenu={(event) => event.preventDefault()}
+                >
+                  <label className="checklist-subtask-check">
+                    <input
+                      type="checkbox"
+                      checked={subtask.isDone}
+                      onChange={(event) => {
+                        if (event.target.checked && !subtask.isDone) {
+                          markSubtaskDone(task.id, subtask.id);
+                        } else if (!event.target.checked && subtask.isDone) {
+                          unmarkSubtask(task.id, subtask.id);
+                        }
+                      }}
+                    />
+                    <span
+                      className={subtask.isDone ? "checklist-subtask-done" : undefined}
+                    >
+                      {subtask.name}
+                    </span>
+                  </label>
+                  {subtask.isDone && (
+                    <>
+                      {subtask.completedDate && (
+                        <p className="item-row">Date: {subtask.completedDate}</p>
+                      )}
+                      {subtask.completedKilometers && (
+                        <p className="item-row">
+                          Kilometers: {subtask.completedKilometers}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </article>
+            <div className="checklist-side-controls" aria-hidden={!selectMode}>
+              <label className="checklist-side-check">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(task.id)}
+                  onChange={() => toggleSelect(task.id)}
+                  aria-label={`Select ${task.taskName}`}
+                  tabIndex={selectMode ? 0 : -1}
+                />
+              </label>
+              <button
+                type="button"
+                className="checklist-gear-button"
+                onClick={() => openTaskEditorForEdit(task)}
+                aria-label={`Configure ${task.taskName}`}
+                title={`Configure ${task.taskName}`}
+                tabIndex={selectMode ? 0 : -1}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M19.4 13.5a7.8 7.8 0 0 0 .1-1.5 7.8 7.8 0 0 0-.1-1.5l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.2a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-2.6-1.5l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-2.6 1.5l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.3a.5.5 0 0 0 .1.6l2 1.6a7.8 7.8 0 0 0-.1 1.5 7.8 7.8 0 0 0 .1 1.5l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.2c.1.2.4.3.6.2l2.4-1a7.3 7.3 0 0 0 2.6 1.5l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6a7.3 7.3 0 0 0 2.6-1.5l2.4 1c.2.1.5 0 .6-.2l1.9-3.2a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+
+  const renderDonePanel = () => (
+    <>
+      {sortedDone.length === 0 && (
+        <article className="card">
+          <p className="muted">No completed tasks yet.</p>
+        </article>
+      )}
+      {sortedDone.map((task) => {
+        const summary = getTaskCompletionSummary(task);
+        return (
+          <article className="card" key={task.id}>
+            <h3 className="item-title">
+              {task.taskName} <span className="chip">Done</span>
+            </h3>
+            <p className="item-row">Date: {summary.date || "N/A"}</p>
+            <p className="item-row">Kilometers: {summary.kilometers || "N/A"}</p>
+            {task.subtasks.map((subtask) => (
+              <div
+                key={subtask.id}
+                className="card"
+                style={{ marginTop: 8 }}
+                onPointerDown={(event) =>
+                  handleSubtaskLongPressStart(event, task.id, subtask)
+                }
+                onPointerUp={clearSubtaskTimer}
+                onPointerCancel={clearSubtaskTimer}
+                onContextMenu={(event) => event.preventDefault()}
+              >
+                <label className="checklist-subtask-check checklist-subtask-done-row">
+                  <input
+                    type="checkbox"
+                    checked={subtask.isDone}
+                    onChange={(event) => {
+                      if (!event.target.checked && subtask.isDone) {
+                        unmarkSubtask(task.id, subtask.id);
+                      }
+                    }}
+                  />
+                  <span className="item-row checklist-subtask-done">
+                    {subtask.name}
+                  </span>
+                </label>
+                {subtask.completedDate && (
+                  <p className="item-row">Date: {subtask.completedDate}</p>
+                )}
+                {subtask.completedKilometers && (
+                  <p className="item-row">
+                    Kilometers: {subtask.completedKilometers}
+                  </p>
+                )}
+              </div>
+            ))}
+          </article>
+        );
+      })}
+    </>
+  );
+
+  const renderPanel = (tab) =>
+    tab === "todo" ? renderTodoPanel() : renderDonePanel();
+
   return (
     <main className="page">
       <h2 className="page-title">Checklist</h2>
 
-      <div className="tabs">
+      <div
+        className="tabs"
+        style={{ "--active-index": activeTab === "done" ? 1 : 0 }}
+      >
+        <span className="tab-dash" aria-hidden="true" />
         <button
           type="button"
           className={activeTab === "todo" ? "tab-active" : ""}
-          onClick={() => setActiveTab("todo")}
+          onClick={() => changeTab("todo")}
         >
           To-Do
         </button>
         <button
           type="button"
           className={activeTab === "done" ? "tab-active" : ""}
-          onClick={() => setActiveTab("done")}
+          onClick={() => changeTab("done")}
         >
           Done
         </button>
       </div>
 
-      {activeTab === "todo" && (
-        <section className="list" style={{ marginTop: 12 }}>
-          {checklist.todo.length === 0 && (
-            <article className="card">
-              <p className="muted">No tasks in To-Do.</p>
-            </article>
-          )}
-          {checklist.todo.map((task) => {
-            const doneCount = task.subtasks.filter((subtask) => subtask.isDone).length;
-            return (
-              <div
-                key={task.id}
-                className={`checklist-entry-row ${
-                  selectMode ? "checklist-entry-row-manage" : ""
-                }`}
-              >
-                <article
-                  className="card checklist-entry-card"
-                  onPointerDown={() => handleLongPressStart(task)}
-                  onPointerUp={clearTimer}
-                  onPointerLeave={clearTimer}
-                >
-                  <div className="checklist-task-header">
-                    <h3 className="item-title">{task.taskName}</h3>
-                  </div>
-                  <p className="item-row">
-                    Progress: {doneCount}/{task.subtasks.length} subtasks done
-                  </p>
-                  {task.subtasks.map((subtask) => (
-                    <div
-                      key={subtask.id}
-                      className="card"
-                      style={{ marginTop: 8 }}
-                      onPointerDown={(event) =>
-                        handleSubtaskLongPressStart(event, task.id, subtask)
-                      }
-                      onPointerUp={clearSubtaskTimer}
-                      onPointerCancel={clearSubtaskTimer}
-                      onContextMenu={(event) => event.preventDefault()}
-                    >
-                      <label className="checklist-subtask-check">
-                        <input
-                          type="checkbox"
-                          checked={subtask.isDone}
-                          onChange={(event) => {
-                            if (event.target.checked && !subtask.isDone) {
-                              markSubtaskDone(task.id, subtask.id);
-                            } else if (!event.target.checked && subtask.isDone) {
-                              unmarkSubtask(task.id, subtask.id);
-                            }
-                          }}
-                        />
-                        <span
-                          className={
-                            subtask.isDone ? "checklist-subtask-done" : undefined
-                          }
-                        >
-                          {subtask.name}
-                        </span>
-                      </label>
-                      {subtask.isDone && (
-                        <>
-                          {subtask.completedDate && (
-                            <p className="item-row">Date: {subtask.completedDate}</p>
-                          )}
-                          {subtask.completedKilometers && (
-                            <p className="item-row">
-                              Kilometers: {subtask.completedKilometers}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </article>
-                <div className="checklist-side-controls" aria-hidden={!selectMode}>
-                  <label className="checklist-side-check">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(task.id)}
-                      onChange={() => toggleSelect(task.id)}
-                      aria-label={`Select ${task.taskName}`}
-                      tabIndex={selectMode ? 0 : -1}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="checklist-gear-button"
-                    onClick={() => openTaskEditorForEdit(task)}
-                    aria-label={`Configure ${task.taskName}`}
-                    title={`Configure ${task.taskName}`}
-                    tabIndex={selectMode ? 0 : -1}
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path
-                        fill="currentColor"
-                        d="M19.4 13.5a7.8 7.8 0 0 0 .1-1.5 7.8 7.8 0 0 0-.1-1.5l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.2a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-2.6-1.5l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-2.6 1.5l-2.4-1a.5.5 0 0 0-.6.2L2.5 8.3a.5.5 0 0 0 .1.6l2 1.6a7.8 7.8 0 0 0-.1 1.5 7.8 7.8 0 0 0 .1 1.5l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.2c.1.2.4.3.6.2l2.4-1a7.3 7.3 0 0 0 2.6 1.5l.4 2.6c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.6a7.3 7.3 0 0 0 2.6-1.5l2.4 1c.2.1.5 0 .6-.2l1.9-3.2a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+      <div
+        className={`tab-panel-shell tab-panel-${tabDirection} ${
+          leavingTab ? "tab-panel-animating" : ""
+        }`}
+      >
+        {leavingTab && (
+          <section className="list tab-panel tab-panel-exit" aria-hidden="true">
+            {renderPanel(leavingTab)}
+          </section>
+        )}
+        <section className="list tab-panel tab-panel-enter" key={activeTab}>
+          {renderPanel(activeTab)}
         </section>
-      )}
-
-      {activeTab === "done" && (
-        <section className="list" style={{ marginTop: 12 }}>
-          {sortedDone.length === 0 && (
-            <article className="card">
-              <p className="muted">No completed tasks yet.</p>
-            </article>
-          )}
-          {sortedDone.map((task) => {
-            const summary = getTaskCompletionSummary(task);
-            return (
-              <article className="card" key={task.id}>
-                <h3 className="item-title">
-                  {task.taskName} <span className="chip">Done</span>
-                </h3>
-                <p className="item-row">Date: {summary.date || "N/A"}</p>
-                <p className="item-row">
-                  Kilometers: {summary.kilometers || "N/A"}
-                </p>
-                {task.subtasks.map((subtask) => (
-                  <div
-                    key={subtask.id}
-                    className="card"
-                    style={{ marginTop: 8 }}
-                    onPointerDown={(event) =>
-                      handleSubtaskLongPressStart(event, task.id, subtask)
-                    }
-                    onPointerUp={clearSubtaskTimer}
-                    onPointerCancel={clearSubtaskTimer}
-                    onContextMenu={(event) => event.preventDefault()}
-                  >
-                    <label className="checklist-subtask-check checklist-subtask-done-row">
-                      <input
-                        type="checkbox"
-                        checked={subtask.isDone}
-                        onChange={(event) => {
-                          if (!event.target.checked && subtask.isDone) {
-                            unmarkSubtask(task.id, subtask.id);
-                          }
-                        }}
-                      />
-                    <span className="item-row checklist-subtask-done">
-                      {subtask.name}
-                    </span>
-                    </label>
-                    {subtask.completedDate && (
-                      <p className="item-row">Date: {subtask.completedDate}</p>
-                    )}
-                    {subtask.completedKilometers && (
-                      <p className="item-row">
-                        Kilometers: {subtask.completedKilometers}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </article>
-            );
-          })}
-        </section>
-      )}
+      </div>
 
       {selectMode && activeTab === "todo" && (
         <button

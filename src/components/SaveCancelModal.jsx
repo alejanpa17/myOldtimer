@@ -16,7 +16,7 @@ function SaveCancelModal({
       <div className="modal stack">
         <h3 style={{ margin: 0 }}>{title}</h3>
         {children}
-        <div className="btn-row">
+        <div className="btn-row modal-actions">
           <button type="button" className="btn-primary" onClick={onSave}>
             {saveLabel}
           </button>

@@ -92,7 +92,7 @@ function VehicleImageModal({ open, currentImage, onClose, onSave, onRemove }) {
         <img
           src={displayedImage}
           alt="Vehicle preview"
-          className="vehicle-image"
+          className="vehicle-image vehicle-image-preview vehicle-image-modal-preview"
           style={{ minHeight: 120 }}
         />
       )}

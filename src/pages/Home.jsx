@@ -105,7 +105,6 @@ function Home() {
     todo: 0,
     done: 0,
   });
-  const [faultCount, setFaultCount] = useState(0);
   const [showImageModal, setShowImageModal] = useState(false);
   const [currentMileageInput, setCurrentMileageInput] = useState("");
 
@@ -118,7 +117,6 @@ function Home() {
       dbGet(STORAGE_KEYS.maintenanceCategories, []),
       dbGet(STORAGE_KEYS.maintenanceHistory, []),
       dbGet(STORAGE_KEYS.checklistData, DEFAULT_CHECKLIST),
-      dbGet(STORAGE_KEYS.currentFaultCodes, []),
     ]).then(([
       storedImage,
       storedInfo,
@@ -126,7 +124,6 @@ function Home() {
       storedCategories,
       storedMaintenanceEntries,
       storedChecklist,
-      storedFaultCodes,
     ]) => {
       if (!mounted) {
         return;
@@ -144,7 +141,6 @@ function Home() {
         todo: normalizedChecklist.todo.length,
         done: normalizedChecklist.done.length,
       });
-      setFaultCount(Array.isArray(storedFaultCodes) ? storedFaultCodes.length : 0);
     });
     return () => {
       mounted = false;
@@ -194,50 +190,6 @@ function Home() {
     return "No categories";
   }, [maintenanceSummary]);
 
-  const garageHealth = useMemo(() => {
-    if (faultCount > 0 || maintenanceSummary.overdue > 0) {
-      return { label: "Needs attention", tone: "overdue" };
-    }
-    if (maintenanceSummary.dueSoon > 0 || checklistSummary.todo > 0) {
-      return { label: "Open tasks", tone: "dueSoon" };
-    }
-    if (maintenanceSummary.ok > 0 || checklistSummary.done > 0) {
-      return { label: "All good", tone: "ok" };
-    }
-    return { label: "Set up garage", tone: "unknown" };
-  }, [
-    checklistSummary.done,
-    checklistSummary.todo,
-    faultCount,
-    maintenanceSummary.dueSoon,
-    maintenanceSummary.ok,
-    maintenanceSummary.overdue,
-  ]);
-
-  const actionCards = [
-    {
-      label: "Checklist",
-      detail:
-        checklistSummary.todo > 0
-          ? `${checklistSummary.todo} open`
-          : `${checklistSummary.done} done`,
-      path: "/checklist",
-      tone: "green",
-    },
-    {
-      label: "Parts Finder",
-      detail: vehicleInfo.vin?.trim() ? "Ready" : "Needs VIN",
-      path: "/parts-finder",
-      tone: "amber",
-    },
-    {
-      label: "Fuel",
-      detail: "Refuel logs",
-      path: "/fuel-efficiency",
-      tone: "green",
-    },
-  ];
-
   const saveImage = async (imageDataUrl) => {
     await dbSet(STORAGE_KEYS.vehicleImage, imageDataUrl);
     setVehicleImage(imageDataUrl);
@@ -254,9 +206,22 @@ function Home() {
         <div className="garage-hero-copy">
           <div className="hero-status-row">
             <p className="eyebrow">myOldtimer Garage</p>
-            <span className={`garage-health-pill status-${garageHealth.tone}`}>
-              {garageHealth.label}
-            </span>
+            <div className="hero-status-actions">
+              <button
+                type="button"
+                className="vehicle-profile-access"
+                onClick={() => navigate("/vehicle")}
+                aria-label="Open vehicle profile"
+                title="Vehicle profile"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M5.3 10.2 7 6.4A2.4 2.4 0 0 1 9.2 5h5.6A2.4 2.4 0 0 1 17 6.4l1.7 3.8 1.1.4c.7.2 1.2.9 1.2 1.7V17a1 1 0 0 1-1 1h-1.2a2.3 2.3 0 0 1-4.4 0H9.6a2.3 2.3 0 0 1-4.4 0H4a1 1 0 0 1-1-1v-4.7c0-.8.5-1.5 1.2-1.7l1.1-.4Zm2.1-.4h9.2l-1-2.3a.9.9 0 0 0-.8-.5H9.2a.9.9 0 0 0-.8.5l-1 2.3Zm-.1 7.6a.9.9 0 1 0 0-1.8.9.9 0 0 0 0 1.8Zm9.4 0a.9.9 0 1 0 0-1.8.9.9 0 0 0 0 1.8Z"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
           <h1 className="home-title">{vehicleLabel}</h1>
           {vehicleMeta && <p className="home-subtitle">{vehicleMeta}</p>}
@@ -275,18 +240,6 @@ function Home() {
         </div>
       </section>
 
-      <section className="home-command-strip" aria-label="Quick commands">
-        <button type="button" onClick={() => navigate("/maintenance/history")}>
-          Log service
-        </button>
-        <button type="button" onClick={() => navigate("/diagnostics/fault-codes")}>
-          Scan codes
-        </button>
-        <button type="button" onClick={() => navigate("/ai")}>
-          Ask AI
-        </button>
-      </section>
-
       <section className="home-status-grid" aria-label="Garage status">
         <article className="status-tile status-tile-large">
           <span className="status-kicker">Odometer</span>
@@ -295,40 +248,24 @@ function Home() {
           </strong>
         </article>
 
-        <article className="status-tile">
+        <button
+          type="button"
+          className="status-tile status-tile-button"
+          onClick={() => navigate("/maintenance")}
+        >
           <span className="status-kicker">Maintenance</span>
           <strong>{maintenanceStatusLabel}</strong>
           <span className="status-note">{maintenanceSummary.ok} tracked OK</span>
-        </article>
-        <article className="status-tile">
+        </button>
+        <button
+          type="button"
+          className="status-tile status-tile-button"
+          onClick={() => navigate("/checklist")}
+        >
           <span className="status-kicker">Checklist</span>
           <strong>{checklistSummary.todo} open</strong>
           <span className="status-note">{checklistSummary.done} completed</span>
-        </article>
-      </section>
-
-      <section className="home-section-heading">
-        <h2>Tools</h2>
-      </section>
-
-      <section className="quick-action-grid">
-        {actionCards.map((action) => (
-          <button
-            key={action.path}
-            type="button"
-            className={`quick-action quick-action-${action.tone}`}
-            onClick={() => navigate(action.path)}
-          >
-            <span className="quick-action-mark" aria-hidden="true" />
-            <span className="quick-action-copy">
-              <strong>{action.label}</strong>
-              <small>{action.detail}</small>
-            </span>
-            <span className="quick-action-arrow" aria-hidden="true">
-              &gt;
-            </span>
-          </button>
-        ))}
+        </button>
       </section>
 
       <VehicleImageModal

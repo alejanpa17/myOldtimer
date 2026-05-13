@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import {
   Link,
   Route,
@@ -21,11 +22,46 @@ import FuelEfficiency from "./pages/FuelEfficiency";
 
 const NAV_ITEMS = [
   { to: "/", label: "Garage", icon: "garage", exact: true },
-  { to: "/vehicle", label: "Vehicle", icon: "vehicle" },
   { to: "/maintenance", label: "Service", icon: "service" },
-  { to: "/diagnostics", label: "Scan", icon: "scan" },
+  { to: "/checklist", label: "Checklist", icon: "checklist" },
+  { to: "/parts-finder", label: "Parts", icon: "parts" },
+  { to: "/fuel-efficiency", label: "Fuel", icon: "fuel" },
   { to: "/ai", label: "AI", icon: "ai" },
 ];
+
+function getLocationKey(location) {
+  return (
+    location.key ||
+    `${location.pathname}${location.search}${location.hash}`
+  );
+}
+
+function getNavIndex(pathname) {
+  return NAV_ITEMS.findIndex((item) =>
+    item.exact ? pathname === item.to : pathname.startsWith(item.to)
+  );
+}
+
+function AppRoutes({ routeLocation }) {
+  return (
+    <Routes location={routeLocation}>
+      <Route path="/" element={<Home />} />
+      <Route path="/vehicle" element={<VehicleInfo />} />
+      <Route path="/diagnosis" element={<Diagnostics />} />
+      <Route path="/diagnostics" element={<Diagnostics />} />
+      <Route path="/diagnostics/fault-codes" element={<FaultCodes />} />
+      <Route path="/diagnostics/fault-history" element={<FaultHistory />} />
+      <Route path="/diagnostics/relay-tester" element={<RelayTester />} />
+      <Route path="/maintenance" element={<Maintenance />} />
+      <Route path="/maintenance/history" element={<MaintenanceHistory />} />
+      <Route path="/maintenance/replace" element={<ReplaceHistory />} />
+      <Route path="/checklist" element={<Checklist />} />
+      <Route path="/parts-finder" element={<PartsFinder />} />
+      <Route path="/fuel-efficiency" element={<FuelEfficiency />} />
+      <Route path="/ai" element={<AIChat />} />
+    </Routes>
+  );
+}
 
 function NavIcon({ name }) {
   switch (name) {
@@ -47,6 +83,24 @@ function NavIcon({ name }) {
           <path d="M4 7.5A3.5 3.5 0 0 1 7.5 4h9A3.5 3.5 0 0 1 20 7.5v9a3.5 3.5 0 0 1-3.5 3.5h-9A3.5 3.5 0 0 1 4 16.5v-9Zm3.5-1.6a1.6 1.6 0 0 0-1.6 1.6v9a1.6 1.6 0 0 0 1.6 1.6h9a1.6 1.6 0 0 0 1.6-1.6v-9a1.6 1.6 0 0 0-1.6-1.6h-9Zm1.2 4.2h6.6v1.8H8.7v-1.8Zm0 3.3h3.8v1.8H8.7v-1.8Z" />
         </svg>
       );
+    case "checklist":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M7.8 6.7 5.7 8.8 4.4 7.5 3.2 8.7l2.5 2.5L9 7.9 7.8 6.7Zm3.2.1h9v1.8h-9V6.8Zm-3.2 6.5-2.1 2.1-1.3-1.3-1.2 1.2 2.5 2.5L9 14.5l-1.2-1.2Zm3.2.1h9v1.8h-9v-1.8Z" />
+        </svg>
+      );
+    case "parts":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M10.6 4a6.6 6.6 0 0 1 5.2 10.7l4.5 4.5-1.3 1.3-4.5-4.5A6.6 6.6 0 1 1 10.6 4Zm0 1.9a4.7 4.7 0 1 0 0 9.4 4.7 4.7 0 0 0 0-9.4Z" />
+        </svg>
+      );
+    case "fuel":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M6 3h8a1 1 0 0 1 1 1v16H5V4a1 1 0 0 1 1-1Zm1 2v5h6V5H7Zm10.8 1.2 2.5 2.5c.5.5.7 1.1.7 1.8V18a2.5 2.5 0 0 1-5 0v-4h-1.5v-2H18a1 1 0 0 0 1-1v-.5c0-.2-.1-.5-.3-.6l-2.3-2.3 1.4-1.4Z" />
+        </svg>
+      );
     case "ai":
       return (
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -65,34 +119,96 @@ function NavIcon({ name }) {
 function App() {
   const location = useLocation();
   const navigationType = useNavigationType();
-  const routeKey =
-    location.key ||
-    `${location.pathname}${location.search}${location.hash}`;
-  const transitionClass =
-    navigationType === "POP"
-      ? "route-transition-back"
-      : "route-transition-forward";
+  const [displayLocation, setDisplayLocation] = useState(location);
+  const [leavingLocation, setLeavingLocation] = useState(null);
+  const [routeDirection, setRouteDirection] = useState("forward");
+  const displayLocationRef = useRef(location);
+  const routeAnimationTimer = useRef(null);
+  const routeAnimationFrame = useRef(null);
+  const activeNavIndex = getNavIndex(location.pathname);
+
+  useEffect(() => {
+    const currentLocation = displayLocationRef.current;
+    if (getLocationKey(currentLocation) === getLocationKey(location)) {
+      return;
+    }
+
+    if (routeAnimationTimer.current) {
+      clearTimeout(routeAnimationTimer.current);
+    }
+    if (routeAnimationFrame.current) {
+      cancelAnimationFrame(routeAnimationFrame.current);
+    }
+
+    const currentNavIndex = getNavIndex(currentLocation.pathname);
+    const nextNavIndex = getNavIndex(location.pathname);
+    const nextDirection =
+      currentNavIndex !== -1 &&
+      nextNavIndex !== -1 &&
+      currentNavIndex !== nextNavIndex
+        ? nextNavIndex > currentNavIndex
+          ? "forward"
+          : "back"
+        : navigationType === "POP"
+          ? "back"
+          : "forward";
+
+    routeAnimationFrame.current = requestAnimationFrame(() => {
+      setRouteDirection(nextDirection);
+      setLeavingLocation(currentLocation);
+      setDisplayLocation(location);
+      displayLocationRef.current = location;
+      routeAnimationFrame.current = null;
+      routeAnimationTimer.current = setTimeout(() => {
+        setLeavingLocation(null);
+        routeAnimationTimer.current = null;
+      }, 280);
+    });
+  }, [location, navigationType]);
+
+  useEffect(() => {
+    return () => {
+      if (routeAnimationTimer.current) {
+        clearTimeout(routeAnimationTimer.current);
+      }
+      if (routeAnimationFrame.current) {
+        cancelAnimationFrame(routeAnimationFrame.current);
+      }
+    };
+  }, []);
 
   return (
     <>
-      <div key={routeKey} className={`route-transition ${transitionClass}`}>
-        <Routes location={location}>
-          <Route path="/" element={<Home />} />
-          <Route path="/vehicle" element={<VehicleInfo />} />
-          <Route path="/diagnostics" element={<Diagnostics />} />
-          <Route path="/diagnostics/fault-codes" element={<FaultCodes />} />
-          <Route path="/diagnostics/fault-history" element={<FaultHistory />} />
-          <Route path="/diagnostics/relay-tester" element={<RelayTester />} />
-          <Route path="/maintenance" element={<Maintenance />} />
-          <Route path="/maintenance/history" element={<MaintenanceHistory />} />
-          <Route path="/maintenance/replace" element={<ReplaceHistory />} />
-          <Route path="/checklist" element={<Checklist />} />
-          <Route path="/parts-finder" element={<PartsFinder />} />
-          <Route path="/fuel-efficiency" element={<FuelEfficiency />} />
-          <Route path="/ai" element={<AIChat />} />
-        </Routes>
+      <div
+        className={`route-stage route-stage-${routeDirection} ${
+          leavingLocation ? "route-stage-animating" : ""
+        }`}
+      >
+        {leavingLocation && (
+          <div
+            key={`exit-${getLocationKey(leavingLocation)}`}
+            className="route-page route-page-exit"
+            aria-hidden="true"
+          >
+            <AppRoutes routeLocation={leavingLocation} />
+          </div>
+        )}
+        <div
+          key={`enter-${getLocationKey(displayLocation)}`}
+          className="route-page route-page-enter"
+        >
+          <AppRoutes routeLocation={displayLocation} />
+        </div>
       </div>
-      <nav className="bottom-nav" aria-label="Primary navigation">
+      <nav
+        className="bottom-nav"
+        aria-label="Primary navigation"
+        style={{
+          "--active-index": Math.max(activeNavIndex, 0),
+          "--nav-count": NAV_ITEMS.length,
+        }}
+      >
+        <span className="bottom-nav-dash" aria-hidden="true" />
         {NAV_ITEMS.map((item) => {
           const isActive = item.exact
             ? location.pathname === item.to

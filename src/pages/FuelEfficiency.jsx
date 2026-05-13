@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { dbGet, dbSet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 import { createId } from "../lib/helpers";
@@ -81,7 +81,10 @@ function formatMetric(value, decimals = 1) {
 }
 
 function FuelEfficiency() {
+  const modeAnimationTimer = useRef(null);
   const [distanceMode, setDistanceMode] = useState(DISTANCE_MODE.odometer);
+  const [leavingDistanceMode, setLeavingDistanceMode] = useState(null);
+  const [modeDirection, setModeDirection] = useState("forward");
   const [form, setForm] = useState(createDefaultForm);
   const [entries, setEntries] = useState([]);
   const [status, setStatus] = useState("");
@@ -112,6 +115,14 @@ function FuelEfficiency() {
 
     return () => {
       mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (modeAnimationTimer.current) {
+        clearTimeout(modeAnimationTimer.current);
+      }
     };
   }, []);
 
@@ -247,9 +258,21 @@ function FuelEfficiency() {
   }, [entries]);
 
   const onChangeMode = (nextMode) => {
+    if (nextMode === distanceMode) {
+      return;
+    }
+    if (modeAnimationTimer.current) {
+      clearTimeout(modeAnimationTimer.current);
+    }
+    setLeavingDistanceMode(distanceMode);
+    setModeDirection(nextMode === DISTANCE_MODE.trip ? "forward" : "back");
     setDistanceMode(nextMode);
     dbSet(STORAGE_KEYS.fuelEfficiencyMode, nextMode);
     setStatus("");
+    modeAnimationTimer.current = setTimeout(() => {
+      setLeavingDistanceMode(null);
+      modeAnimationTimer.current = null;
+    }, 280);
   };
 
   const saveRefuel = async () => {
@@ -282,6 +305,51 @@ function FuelEfficiency() {
     setStatus("Refuel saved locally.");
   };
 
+  const renderDistanceModeFields = (mode) =>
+    mode === DISTANCE_MODE.odometer ? (
+      <div>
+        <label htmlFor="odometerValue" className="label">
+          Current odometer reading
+        </label>
+        <input
+          id="odometerValue"
+          type="number"
+          inputMode="numeric"
+          className="input input-large"
+          min="0"
+          step="1"
+          value={form.odometerValue}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, odometerValue: event.target.value }))
+          }
+        />
+        <p className="item-row">
+          Last odometer:{" "}
+          {lastOdometerValue === null
+            ? "No previous entry"
+            : `${formatMetric(lastOdometerValue, 0)} km`}
+        </p>
+      </div>
+    ) : (
+      <div>
+        <label htmlFor="tripDistance" className="label">
+          Distance driven since last refuel
+        </label>
+        <input
+          id="tripDistance"
+          type="number"
+          inputMode="decimal"
+          className="input input-large"
+          min="0"
+          step="0.1"
+          value={form.tripDistance}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, tripDistance: event.target.value }))
+          }
+        />
+      </div>
+    );
+
   return (
     <main className="page page-with-sticky-cta">
       <h2 className="page-title">Fuel Efficiency</h2>
@@ -290,7 +358,13 @@ function FuelEfficiency() {
         <h3 className="item-title" style={{ marginBottom: 2 }}>
           Distance Input Method
         </h3>
-        <div className="segmented">
+        <div
+          className="segmented"
+          style={{
+            "--active-index": distanceMode === DISTANCE_MODE.trip ? 1 : 0,
+          }}
+        >
+          <span className="tab-dash" aria-hidden="true" />
           <button
             type="button"
             className={distanceMode === DISTANCE_MODE.odometer ? "tab-active" : ""}
@@ -360,51 +434,20 @@ function FuelEfficiency() {
           />
         </div>
 
-        {distanceMode === DISTANCE_MODE.odometer && (
-          <div>
-            <label htmlFor="odometerValue" className="label">
-              Current odometer reading
-            </label>
-            <input
-              id="odometerValue"
-              type="number"
-              inputMode="numeric"
-              className="input input-large"
-              min="0"
-              step="1"
-              value={form.odometerValue}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, odometerValue: event.target.value }))
-              }
-            />
-            <p className="item-row">
-              Last odometer:{" "}
-              {lastOdometerValue === null
-                ? "No previous entry"
-                : `${formatMetric(lastOdometerValue, 0)} km`}
-            </p>
+        <div
+          className={`tab-panel-shell tab-panel-${modeDirection} ${
+            leavingDistanceMode ? "tab-panel-animating" : ""
+          }`}
+        >
+          {leavingDistanceMode && (
+            <div className="tab-panel tab-panel-exit" aria-hidden="true">
+              {renderDistanceModeFields(leavingDistanceMode)}
+            </div>
+          )}
+          <div className="tab-panel tab-panel-enter" key={distanceMode}>
+            {renderDistanceModeFields(distanceMode)}
           </div>
-        )}
-
-        {distanceMode === DISTANCE_MODE.trip && (
-          <div>
-            <label htmlFor="tripDistance" className="label">
-              Distance driven since last refuel
-            </label>
-            <input
-              id="tripDistance"
-              type="number"
-              inputMode="decimal"
-              className="input input-large"
-              min="0"
-              step="0.1"
-              value={form.tripDistance}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, tripDistance: event.target.value }))
-              }
-            />
-          </div>
-        )}
+        </div>
 
         <label className="checkbox-row" htmlFor="fullTank">
           <input
