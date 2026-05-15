@@ -4,6 +4,7 @@ import {
   Route,
   Routes,
   useLocation,
+  useNavigate,
   useNavigationType,
 } from "react-router-dom";
 import Home from "./pages/Home";
@@ -120,6 +121,7 @@ function NavIcon({ name }) {
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const navigationType = useNavigationType();
   const [displayLocation, setDisplayLocation] = useState(location);
   const [leavingLocation, setLeavingLocation] = useState(null);
@@ -127,6 +129,7 @@ function App() {
   const displayLocationRef = useRef(location);
   const routeAnimationTimer = useRef(null);
   const routeAnimationFrame = useRef(null);
+  const swipeStart = useRef(null);
   const activeNavIndex = getNavIndex(location.pathname);
 
   useEffect(() => {
@@ -179,12 +182,59 @@ function App() {
     };
   }, []);
 
+  const handleTouchStart = (event) => {
+    if (event.touches.length !== 1 || activeNavIndex === -1) {
+      swipeStart.current = null;
+      return;
+    }
+
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("button, a, input, textarea, select, label, [role='button']")
+    ) {
+      swipeStart.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    swipeStart.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+    };
+  };
+
+  const handleTouchEnd = (event) => {
+    if (!swipeStart.current || activeNavIndex === -1) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - swipeStart.current.x;
+    const deltaY = touch.clientY - swipeStart.current.y;
+    swipeStart.current = null;
+
+    const horizontalDistance = Math.abs(deltaX);
+    const verticalDistance = Math.abs(deltaY);
+    if (horizontalDistance < 64 || horizontalDistance < verticalDistance * 1.25) {
+      return;
+    }
+
+    const nextIndex = deltaX < 0 ? activeNavIndex + 1 : activeNavIndex - 1;
+    const nextItem = NAV_ITEMS[nextIndex];
+    if (nextItem) {
+      navigate(nextItem.to);
+    }
+  };
+
   return (
     <>
       <div
         className={`route-stage route-stage-${routeDirection} ${
           leavingLocation ? "route-stage-animating" : ""
         }`}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {leavingLocation && (
           <div
