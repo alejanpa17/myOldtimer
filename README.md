@@ -15,7 +15,8 @@ https://alejanpa17.github.io/myOldtimer/
 - Checklist with tasks/subtasks
 - Fuel efficiency logging
 - Parts finder using VIN redirect
-- AI chat placeholder screen
+- Gemini AI chat with vehicle context, manual URL sources, grounded results, and
+  confirmed profile-update proposals
 - Offline-capable PWA
 - Local-only data storage (IndexedDB)
 
@@ -25,6 +26,12 @@ https://alejanpa17.github.io/myOldtimer/
 - React Router
 - IndexedDB (custom key-value wrapper)
 - Vite PWA plugin
+
+## Documentation
+
+See [`docs/README.md`](docs/README.md) for the product requirements, technical
+design, data model and privacy notes, development/deployment guide, and quality
+roadmap derived from the current repository and Graphify output.
 
 ## Run
 

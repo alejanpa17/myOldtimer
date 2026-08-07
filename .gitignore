@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Graphify local installation and generated output
+.graphifyignore
+graphify-out/
+tools/graphify-src/
+tools/graphify-venv/
