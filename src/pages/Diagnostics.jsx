@@ -48,6 +48,11 @@ function Diagnostics() {
     <main className="page">
       <h2 className="page-title">Diagnostics</h2>
 
+      <aside className="demo-notice" role="note">
+        <span className="demo-notice-icon" aria-hidden="true">SIM</span>
+        <span><strong>Simulation mode</strong> Values, scans, and commands on this screen are generated locally. No vehicle hardware is connected.</span>
+      </aside>
+
       <section className="card stack">
         <h3 style={{ margin: 0 }}>Connection State</h3>
         <p className={connected ? "" : "warning"} style={{ margin: 0 }}>

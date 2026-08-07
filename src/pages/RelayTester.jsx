@@ -37,6 +37,11 @@ function RelayTester() {
     <main className="page">
       <h2 className="page-title">Relay Tester</h2>
 
+      <aside className="demo-notice" role="note">
+        <span className="demo-notice-icon" aria-hidden="true">SIM</span>
+        <span><strong>No physical commands</strong> This prototype only simulates relay actions on screen.</span>
+      </aside>
+
       <section className="stack">
         <button type="button" onClick={() => askToSend("Fuel Pump")}>
           Fuel Pump

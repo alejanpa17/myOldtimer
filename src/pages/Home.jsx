@@ -101,6 +101,25 @@ function formatNumber(value, decimals = 0) {
   });
 }
 
+function DashboardIcon({ name }) {
+  const paths = {
+    odometer:
+      "M4 17a8 8 0 1 1 16 0h-2a6 6 0 1 0-12 0H4Zm8-8a1 1 0 0 1 1 1v3.6l2.3 1.3-1 1.8-2.8-1.7a1 1 0 0 1-.5-.9V10a1 1 0 0 1 1-1Z",
+    service:
+      "M21.1 6.1a5.5 5.5 0 0 1-7.2 6.9l-7.6 7.6a2.1 2.1 0 0 1-3-3l7.6-7.6A5.5 5.5 0 0 1 17.8 2.8l-3.2 3.2 3.4 3.4 3.1-3.3Z",
+    checklist:
+      "M7.8 6.7 5.7 8.8 4.4 7.5 3.2 8.7l2.5 2.5L9 7.9 7.8 6.7Zm3.2.1h9v1.8h-9V6.8Zm-3.2 6.5-2.1 2.1-1.3-1.3-1.2 1.2 2.5 2.5L9 14.5l-1.2-1.2Zm3.2.1h9v1.8h-9v-1.8Z",
+  };
+
+  return (
+    <span className="status-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path fill="currentColor" d={paths[name]} />
+      </svg>
+    </span>
+  );
+}
+
 function Home() {
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
@@ -196,6 +215,14 @@ function Home() {
     return "No categories";
   }, [maintenanceSummary]);
 
+  const maintenanceTone = maintenanceSummary.overdue > 0
+    ? "overdue"
+    : maintenanceSummary.dueSoon > 0
+      ? "dueSoon"
+      : maintenanceSummary.unknown > 0
+        ? "unknown"
+        : "ok";
+
   const saveImage = async (imageDataUrl) => {
     await dbSet(STORAGE_KEYS.vehicleImage, imageDataUrl);
     setVehicleImage(imageDataUrl);
@@ -237,7 +264,12 @@ function Home() {
       <section className="garage-hero">
         <div className="garage-hero-copy">
           <div className="hero-status-row">
-            <p className="eyebrow">myOldtimer Garage</p>
+            <div>
+              <p className="eyebrow">myOldtimer Garage</p>
+              <span className="local-data-badge">
+                <span aria-hidden="true" /> Local &amp; private
+              </span>
+            </div>
             <div className="hero-status-actions">
               <button
                 type="button"
@@ -273,31 +305,74 @@ function Home() {
       </section>
 
       <section className="home-status-grid" aria-label="Garage status">
-        <article className="status-tile status-tile-large">
-          <span className="status-kicker">Odometer</span>
-          <strong>
-            {currentMileage === null ? "Not set" : `${formatNumber(currentMileage)} km`}
-          </strong>
-        </article>
+        <button
+          type="button"
+          className="status-tile status-tile-large status-tile-button"
+          onClick={() => navigate("/vehicle")}
+          aria-label="Open vehicle profile to update odometer"
+        >
+          <DashboardIcon name="odometer" />
+          <span className="status-copy">
+            <span className="status-kicker">Odometer</span>
+            <strong>
+              {currentMileage === null ? "Not set" : `${formatNumber(currentMileage)} km`}
+            </strong>
+            <span className="status-note">Tap to update vehicle details</span>
+          </span>
+          <span className="status-arrow" aria-hidden="true">&#8599;</span>
+        </button>
 
         <button
           type="button"
-          className="status-tile status-tile-button"
+          className={`status-tile status-tile-button status-tile-${maintenanceTone}`}
           onClick={() => navigate("/maintenance")}
         >
-          <span className="status-kicker">Maintenance</span>
-          <strong>{maintenanceStatusLabel}</strong>
-          <span className="status-note">{maintenanceSummary.ok} tracked OK</span>
+          <DashboardIcon name="service" />
+          <span className="status-copy">
+            <span className="status-kicker">Maintenance</span>
+            <strong>{maintenanceStatusLabel}</strong>
+            <span className="status-note">{maintenanceSummary.ok} tracked OK</span>
+          </span>
         </button>
         <button
           type="button"
           className="status-tile status-tile-button"
           onClick={() => navigate("/checklist")}
         >
-          <span className="status-kicker">Checklist</span>
-          <strong>{checklistSummary.todo} open</strong>
-          <span className="status-note">{checklistSummary.done} completed</span>
+          <DashboardIcon name="checklist" />
+          <span className="status-copy">
+            <span className="status-kicker">Checklist</span>
+            <strong>{checklistSummary.todo} open</strong>
+            <span className="status-note">{checklistSummary.done} completed</span>
+          </span>
         </button>
+      </section>
+
+      <section className="home-workshop" aria-labelledby="workshop-title">
+        <div className="section-heading-row">
+          <div>
+            <p className="eyebrow">Records &amp; tools</p>
+            <h2 id="workshop-title">Workshop</h2>
+          </div>
+          <span className="section-count">{vehicles.length} {vehicles.length === 1 ? "vehicle" : "vehicles"}</span>
+        </div>
+        <div className="quick-action-grid">
+          <button type="button" className="quick-action" onClick={() => navigate("/maintenance/history")}>
+            <span className="quick-action-number">01</span>
+            <span><strong>Service log</strong><small>Maintenance history</small></span>
+            <span aria-hidden="true">&#8594;</span>
+          </button>
+          <button type="button" className="quick-action" onClick={() => navigate("/maintenance/replace")}>
+            <span className="quick-action-number">02</span>
+            <span><strong>Parts log</strong><small>Replacement history</small></span>
+            <span aria-hidden="true">&#8594;</span>
+          </button>
+          <button type="button" className="quick-action" onClick={() => navigate("/diagnostics")}>
+            <span className="quick-action-number">03</span>
+            <span><strong>Diagnostics</strong><small>Simulation tools</small></span>
+            <span aria-hidden="true">&#8594;</span>
+          </button>
+        </div>
       </section>
 
       <VehicleImageModal

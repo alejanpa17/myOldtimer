@@ -22,6 +22,11 @@ function FaultHistory() {
     <main className="page">
       <h2 className="page-title">Fault Code History</h2>
 
+      <aside className="demo-notice" role="note">
+        <span className="demo-notice-icon" aria-hidden="true">SIM</span>
+        <span><strong>Simulation history</strong> These entries come from demo scans, not vehicle hardware.</span>
+      </aside>
+
       <section className="list">
         {history.length === 0 && (
           <article className="card">

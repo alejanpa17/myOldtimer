@@ -61,7 +61,11 @@ function Garage() {
 
   return (
     <main className="page">
-      <h2 className="page-title">Garage</h2>
+      <header className="page-heading">
+        <p className="eyebrow">Your collection</p>
+        <h2 className="page-title">Garage</h2>
+        <p>Choose a vehicle to make its records active, or tap the current one to edit its profile.</p>
+      </header>
 
       <section className="garage-page-grid" aria-label="Vehicles">
         {vehicles.map((vehicle) => (
@@ -83,6 +87,9 @@ function Garage() {
               <CarPlaceholder />
             )}
             <span className="garage-vehicle-name">{getVehicleLabel(vehicle)}</span>
+            {vehicle.id === selectedVehicleId && (
+              <span className="garage-active-label">Active</span>
+            )}
           </button>
         ))}
 

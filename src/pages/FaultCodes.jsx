@@ -76,6 +76,11 @@ function FaultCodes() {
     <main className="page">
       <h2 className="page-title">Current Fault Codes</h2>
 
+      <aside className="demo-notice" role="note">
+        <span className="demo-notice-icon" aria-hidden="true">SIM</span>
+        <span><strong>Demo scan</strong> Results are randomly generated and are not readings from your vehicle.</span>
+      </aside>
+
       {renderedCodes}
 
       {status && <p className="muted">{status}</p>}
