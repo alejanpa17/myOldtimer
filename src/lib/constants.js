@@ -31,6 +31,7 @@ export const STORAGE_KEYS = {
   checklistData: "checklistData",
   fuelEfficiencyEntries: "fuelEfficiencyEntries",
   fuelEfficiencyMode: "fuelEfficiencyMode",
+  expenseCurrency: "expenseCurrency",
   aiApiKey: "aiApiKey",
   aiChatLog: "aiChatLog",
   aiModel: "aiModel",

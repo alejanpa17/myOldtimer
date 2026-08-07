@@ -21,6 +21,7 @@ import FaultHistory from "./pages/FaultHistory";
 import RelayTester from "./pages/RelayTester";
 import PartsFinder from "./pages/PartsFinder";
 import FuelEfficiency from "./pages/FuelEfficiency";
+import Expenses from "./pages/Expenses";
 
 const NAV_ITEMS = [
   { to: "/", label: "Garage", icon: "garage", exact: true },
@@ -61,6 +62,7 @@ function AppRoutes({ routeLocation }) {
       <Route path="/checklist" element={<Checklist />} />
       <Route path="/parts-finder" element={<PartsFinder />} />
       <Route path="/fuel-efficiency" element={<FuelEfficiency />} />
+      <Route path="/expenses" element={<Expenses />} />
       <Route path="/ai" element={<AIChat />} />
     </Routes>
   );

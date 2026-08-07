@@ -372,6 +372,11 @@ function Home() {
             <span><strong>Diagnostics</strong><small>Simulation tools</small></span>
             <span aria-hidden="true">&#8594;</span>
           </button>
+          <button type="button" className="quick-action" onClick={() => navigate("/expenses")}>
+            <span className="quick-action-number">04</span>
+            <span><strong>Expenses</strong><small>Costs &amp; charts</small></span>
+            <span aria-hidden="true">&#8594;</span>
+          </button>
         </div>
       </section>
 

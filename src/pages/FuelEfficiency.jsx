@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { dbGet, dbSet } from "../lib/db";
 import { STORAGE_KEYS } from "../lib/constants";
 import { createId } from "../lib/helpers";
@@ -81,6 +82,7 @@ function formatMetric(value, decimals = 1) {
 }
 
 function FuelEfficiency() {
+  const navigate = useNavigate();
   const modeAnimationTimer = useRef(null);
   const [distanceMode, setDistanceMode] = useState(DISTANCE_MODE.odometer);
   const [leavingDistanceMode, setLeavingDistanceMode] = useState(null);
@@ -352,7 +354,12 @@ function FuelEfficiency() {
 
   return (
     <main className="page page-with-sticky-cta">
-      <h2 className="page-title">Fuel Efficiency</h2>
+      <div className="page-title-actions">
+        <h2 className="page-title">Fuel Efficiency</h2>
+        <button type="button" className="expense-link-button" onClick={() => navigate("/expenses")}>
+          Expense charts
+        </button>
+      </div>
 
       <section className="card stack">
         <h3 className="item-title" style={{ marginBottom: 2 }}>
@@ -552,6 +559,9 @@ function FuelEfficiency() {
             </p>
             <p className="item-row">
               Fuel: {entry.liters !== null ? `${formatMetric(entry.liters, 2)} L` : "N/A"}
+            </p>
+            <p className="item-row">
+              Total price: {entry.totalPrice !== null ? formatMetric(entry.totalPrice, 2) : "N/A"}
             </p>
             <p className="item-row">
               Consumption:{" "}

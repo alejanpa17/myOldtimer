@@ -6,9 +6,11 @@ function MaintenanceEntryModal({
   idPrefix,
   date,
   kilometers,
+  cost,
   comment,
   onDateChange,
   onKilometersChange,
+  onCostChange,
   onCommentChange,
   onSave,
   onClose,
@@ -63,6 +65,25 @@ function MaintenanceEntryModal({
             onChange={(event) => onCommentChange(event.target.value)}
           />
         </div>
+
+        {onCostChange && (
+          <div>
+            <label className="label" htmlFor={`${idPrefix}-cost`}>
+              Cost (optional)
+            </label>
+            <input
+              id={`${idPrefix}-cost`}
+              type="number"
+              inputMode="decimal"
+              className="input"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={cost}
+              onChange={(event) => onCostChange(event.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       {error && (

@@ -82,9 +82,9 @@ Acceptance examples:
 ### FR-4: Maintenance and replacement history
 
 - A maintenance entry can link one or more maintenance categories and record a
-  date, mileage, and comment.
-- A replacement entry can record one or more deduplicated part names, date,
-  mileage, and comment.
+  date, mileage, optional cost, and comment.
+- A replacement entry can record one or more part names with an optional price
+  for each part, plus date, mileage, and comment.
 - Entries can be added, edited, selected, and deleted.
 - Lists are displayed newest first.
 - A valid recorded mileage raises the active vehicle mileage only when it is
@@ -98,7 +98,7 @@ Acceptance examples:
 - Tasks and subtasks can be created and edited; tasks can be selected and deleted.
 - Completing every subtask moves a task from To-Do to Done; reopening a subtask
   moves the task back as needed.
-- A completed subtask can carry an optional completion date and mileage.
+- A completed subtask can carry an optional completion date, mileage, and cost.
 - A recorded completion mileage can increase the active vehicle mileage.
 - Legacy completed-task records are normalized when loaded.
 
@@ -154,7 +154,17 @@ real vehicle communication or a safety-certified control.
 - Chat history and workshop-manual URLs are stored per vehicle. Core AI settings
   are device-wide active keys.
 
-### FR-10: Local persistence and offline shell
+### FR-10: Expense tracking
+
+- Fuel total prices, maintenance costs, individual replacement-part prices, and
+  completed checklist-subtask costs contribute to the active vehicle's expenses.
+- The Expenses screen shows all-time and current-year totals, a category
+  breakdown, the last 12 months, and a recent-expense ledger.
+- The user can choose EUR, USD, GBP, or CHF as the display currency. Changing the
+  currency changes the display unit and does not perform exchange-rate conversion.
+- Existing records without price fields remain valid and contribute no expense.
+
+### FR-11: Local persistence and offline shell
 
 - Application records are stored in IndexedDB in a single key-value object store.
 - AI settings also use namespaced `localStorage` as a fallback if IndexedDB access

@@ -11,6 +11,7 @@ import {
 import SaveCancelModal from "../components/SaveCancelModal";
 import EditToggleButton from "../components/EditToggleButton";
 import { syncMileageIfHigher } from "../lib/mileage";
+import { parseExpenseAmount } from "../lib/expenses";
 
 function createEmptyTaskEditor() {
   return {
@@ -50,6 +51,7 @@ function Checklist() {
     name: "",
     date: "",
     kilometers: "",
+    cost: "",
   });
   const [subtaskMetaError, setSubtaskMetaError] = useState("");
 
@@ -223,6 +225,7 @@ function Checklist() {
         isDone: false,
         completedDate: "",
         completedKilometers: "",
+        cost: null,
       };
     });
 
@@ -274,6 +277,7 @@ function Checklist() {
       isDone: false,
       completedDate: "",
       completedKilometers: "",
+      cost: null,
     }));
   };
 
@@ -291,19 +295,24 @@ function Checklist() {
     event.stopPropagation();
     clearSubtaskTimer();
     subtaskPressTimer.current = setTimeout(() => {
-      setSubtaskMetaTarget({ taskId, subtaskId: subtask.id });
-      setSubtaskMetaForm({
-        name: subtask.name || "",
-        date: subtask.completedDate || "",
-        kilometers: subtask.completedKilometers || "",
-      });
-      setSubtaskMetaError("");
+      openSubtaskDetails(taskId, subtask);
     }, 550);
+  };
+
+  const openSubtaskDetails = (taskId, subtask) => {
+    setSubtaskMetaTarget({ taskId, subtaskId: subtask.id });
+    setSubtaskMetaForm({
+      name: subtask.name || "",
+      date: subtask.completedDate || "",
+      kilometers: subtask.completedKilometers || "",
+      cost: subtask.cost === null || subtask.cost === undefined ? "" : String(subtask.cost),
+    });
+    setSubtaskMetaError("");
   };
 
   const closeSubtaskMetaModal = () => {
     setSubtaskMetaTarget(null);
-    setSubtaskMetaForm({ name: "", date: "", kilometers: "" });
+    setSubtaskMetaForm({ name: "", date: "", kilometers: "", cost: "" });
     setSubtaskMetaError("");
   };
 
@@ -317,11 +326,21 @@ function Checklist() {
       setSubtaskMetaError("Subtask name is required.");
       return;
     }
+    const cost = parseExpenseAmount(subtaskMetaForm.cost);
+    if (subtaskMetaForm.cost.trim() && cost === null) {
+      setSubtaskMetaError("Cost must be a valid non-negative number.");
+      return;
+    }
+    if (cost !== null && cost > 0 && !subtaskMetaForm.date) {
+      setSubtaskMetaError("Add a completion date so this expense can appear in charts.");
+      return;
+    }
 
     await updateSubtaskMetadata(subtaskMetaTarget.taskId, subtaskMetaTarget.subtaskId, {
       name: trimmedName,
       completedDate: subtaskMetaForm.date,
       completedKilometers: subtaskMetaForm.kilometers,
+      cost,
     });
     await syncMileageIfHigher(subtaskMetaForm.kilometers);
     closeSubtaskMetaModal();
@@ -421,6 +440,16 @@ function Checklist() {
                           Kilometers: {subtask.completedKilometers}
                         </p>
                       )}
+                      {subtask.cost !== null && (
+                        <p className="item-row">Cost: {subtask.cost.toFixed(2)}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="checklist-details-button"
+                        onClick={() => openSubtaskDetails(task.id, subtask)}
+                      >
+                        {subtask.cost === null ? "Add details & cost" : "Edit details & cost"}
+                      </button>
                     </>
                   )}
                 </div>
@@ -508,6 +537,16 @@ function Checklist() {
                     Kilometers: {subtask.completedKilometers}
                   </p>
                 )}
+                {subtask.cost !== null && (
+                  <p className="item-row">Cost: {subtask.cost.toFixed(2)}</p>
+                )}
+                <button
+                  type="button"
+                  className="checklist-details-button"
+                  onClick={() => openSubtaskDetails(task.id, subtask)}
+                >
+                  {subtask.cost === null ? "Add details & cost" : "Edit details & cost"}
+                </button>
               </div>
             ))}
           </article>
@@ -707,6 +746,27 @@ function Checklist() {
                 setSubtaskMetaForm((current) => ({
                   ...current,
                   kilometers: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="subtask-meta-cost">
+              Cost (optional)
+            </label>
+            <input
+              id="subtask-meta-cost"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              className="input"
+              placeholder="0.00"
+              value={subtaskMetaForm.cost}
+              onChange={(event) =>
+                setSubtaskMetaForm((current) => ({
+                  ...current,
+                  cost: event.target.value,
                 }))
               }
             />

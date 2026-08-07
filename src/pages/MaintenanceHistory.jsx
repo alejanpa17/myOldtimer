@@ -6,6 +6,7 @@ import MaintenanceEntryModal from "../components/MaintenanceEntryModal";
 import EditToggleButton from "../components/EditToggleButton";
 import { normalizeCategories, todayIsoDate } from "../lib/maintenance";
 import { syncMileageIfHigher } from "../lib/mileage";
+import { parseExpenseAmount } from "../lib/expenses";
 
 function normalizeMaintenanceEntries(rawEntries, categories) {
   const categoryById = new Map(categories.map((category) => [category.id, category]));
@@ -43,6 +44,7 @@ function normalizeMaintenanceEntries(rawEntries, categories) {
       categories: categoriesSnapshot,
       date: entry?.date || "",
       kilometers: entry?.kilometers || "",
+      cost: parseExpenseAmount(entry?.cost),
       comment: entry?.comment || "",
     };
   });
@@ -54,6 +56,7 @@ function createEmptyForm() {
     categoryIds: [],
     date: todayIsoDate(),
     kilometers: "",
+    cost: "",
     comment: "",
   };
 }
@@ -145,6 +148,7 @@ function MaintenanceHistory() {
       categoryIds: entry.categoryIds || [],
       date: entry.date || todayIsoDate(),
       kilometers: entry.kilometers || "",
+      cost: entry.cost === null || entry.cost === undefined ? "" : String(entry.cost),
       comment: entry.comment || "",
     });
     setFormError("");
@@ -175,6 +179,12 @@ function MaintenanceHistory() {
       return;
     }
 
+    const cost = parseExpenseAmount(form.cost);
+    if (form.cost.trim() && cost === null) {
+      setFormError("Cost must be a valid non-negative number.");
+      return;
+    }
+
     const categoriesSnapshot = form.categoryIds
       .map((id) => categoryById.get(id)?.name)
       .filter(Boolean);
@@ -185,6 +195,7 @@ function MaintenanceHistory() {
       categories: categoriesSnapshot,
       date: form.date,
       kilometers: form.kilometers,
+      cost,
       comment: form.comment,
     };
 
@@ -224,6 +235,9 @@ function MaintenanceHistory() {
                 </h3>
                 <p className="item-row">Date: {entry.date || "N/A"}</p>
                 <p className="item-row">Kilometers: {entry.kilometers || "N/A"}</p>
+                {entry.cost !== null && (
+                  <p className="item-row">Cost: {entry.cost.toFixed(2)}</p>
+                )}
                 <p className="item-row">Comment: {entry.comment || "N/A"}</p>
               </article>
               <div className="maintenance-side-controls" aria-hidden={!selectMode}>
@@ -292,12 +306,16 @@ function MaintenanceHistory() {
         idPrefix="maintenance-entry"
         date={form.date}
         kilometers={form.kilometers}
+        cost={form.cost}
         comment={form.comment}
         onDateChange={(value) =>
           setForm((current) => ({ ...current, date: value }))
         }
         onKilometersChange={(value) =>
           setForm((current) => ({ ...current, kilometers: value }))
+        }
+        onCostChange={(value) =>
+          setForm((current) => ({ ...current, cost: value }))
         }
         onCommentChange={(value) =>
           setForm((current) => ({ ...current, comment: value }))

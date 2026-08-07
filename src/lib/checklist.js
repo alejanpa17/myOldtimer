@@ -1,4 +1,5 @@
 import { createId } from "./helpers";
+import { parseExpenseAmount } from "./expenses";
 
 export const DEFAULT_CHECKLIST = {
   todo: [],
@@ -12,6 +13,7 @@ function normalizeSubtask(subtask, index, forceDone = false) {
     isDone: forceDone || Boolean(subtask?.isDone),
     completedDate: subtask?.completedDate || "",
     completedKilometers: subtask?.completedKilometers || "",
+    cost: parseExpenseAmount(subtask?.cost),
   };
 }
 
@@ -41,6 +43,7 @@ function fromLegacyDoneEntry(entry, index) {
         isDone: true,
         completedDate: entry?.date || "",
         completedKilometers: entry?.kilometers || "",
+        cost: null,
       },
     ],
   };

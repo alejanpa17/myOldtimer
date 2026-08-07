@@ -85,6 +85,7 @@ largest blast radius.
 | `/checklist` | To-do/completed task workflow |
 | `/parts-finder` | VIN-based provider links |
 | `/fuel-efficiency` | Refuel log and calculations |
+| `/expenses` | Expense totals, charts, and recent ledger |
 | `/ai` | Gemini assistant |
 
 At a root deployment `main.jsx` uses `BrowserRouter`. When Vite's base URL is a

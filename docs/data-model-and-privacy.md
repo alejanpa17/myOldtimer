@@ -67,6 +67,7 @@ data without a vehicle ID. See the technical design for the switch/snapshot flow
 | `checklistData` | Per vehicle | `{todo, done}` task lists |
 | `fuelEfficiencyEntries` | Per vehicle | Refuel records and calculated metrics |
 | `fuelEfficiencyMode` | Per vehicle | Last selected distance-input mode |
+| `expenseCurrency` | Active/global setting | Expense display currency code |
 | `aiChatLog` | Per vehicle | Sanitized user/AI messages and source/video metadata |
 | `aiManualUrls` | Per vehicle | Public workshop-manual URL records |
 | `aiApiKey` | Active/global setting | Gemini API key |
@@ -109,13 +110,24 @@ entry. Stored category values are fallback compatibility fields.
 ```
 
 `categories` is a name snapshot for display/migration; `categoryIds` is the
-relationship used by current code.
+relationship used by current code. Maintenance history records also carry an
+optional `cost: number | null` field.
 
 ### Replacement history
 
 ```js
-{ id, parts: string[], date, kilometers, comment }
+{
+  id,
+  parts: string[],
+  partItems: [{ id, name, price: number | null }],
+  date,
+  kilometers,
+  comment
+}
 ```
+
+`parts` remains as a compatibility name snapshot. New UI reads and writes
+`partItems` so each replaced part can have its own price.
 
 ### Checklist
 
@@ -124,7 +136,7 @@ relationship used by current code.
   todo: [{
     id,
     taskName,
-    subtasks: [{ id, name, isDone, completedDate, completedKilometers }]
+    subtasks: [{ id, name, isDone, completedDate, completedKilometers, cost }]
   }],
   done: [/* same task shape; every subtask is done */]
 }
